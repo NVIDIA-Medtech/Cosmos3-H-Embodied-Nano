@@ -85,6 +85,7 @@ This repository is the home of the models: everything for exploring, running, an
   <tr><td><b>Serve an OpenAI-compatible API</b></td><td><a href="cookbooks/cosmos3/README.md">Serving setup guide</a> — vLLM, vLLM-Omni, or NIM</td><td>30 min</td></tr>
   <tr><td><b>Post-train on my own data</b> — SFT, distillation, RL</td><td><a href="https://github.com/NVIDIA/cosmos-framework">Cosmos Framework</a>, then <a href="evaluation/">evaluate here</a></td><td>hours</td></tr>
   <tr><td><b>Explore runnable notebooks</b></td><td><a href="cookbooks/cosmos3/README.md">Cookbooks</a></td><td>browse</td></tr>
+  <tr><td><b>Train or run a surgical robotics model</b> — Open-H, action history</td><td><a href="cosmos3_h_embodied/README.md">Cosmos3-H-Embodied-Nano</a></td><td>hours</td></tr>
   <tr><td><b>Evaluate a model</b></td><td><a href="evaluation/">Evaluation suites</a> — PAIBench, Physics-IQ, VLMEvalKit</td><td>hours</td></tr>
   <tr><td><b>Check latency &amp; throughput</b></td><td><a href="inference_benchmarks.md">Benchmarks</a></td><td>browse</td></tr>
 </table>
@@ -147,6 +148,8 @@ cosmos/
 ├── cookbooks/          # runnable notebooks for every capability (start here to explore)
 │   └── cosmos3/        # generator (audiovisual · action · transfer) · reasoner + prompt guide
 ├── evaluation/         # quality benchmark suites: PAIBench, Physics-IQ, RBench, UniGenBench, VLMEvalKit
+├── cosmos3_h_embodied/ # Cosmos3-H-Embodied-Nano: Open-H surgical robotics recipe on Cosmos Framework
+├── tools/              # Open-H data preparation and checkpoint conversion for cosmos3_h_embodied
 ├── docs/
 │   └── reference/      # lookup: model reference
 ├── assets/             # brand + demo media

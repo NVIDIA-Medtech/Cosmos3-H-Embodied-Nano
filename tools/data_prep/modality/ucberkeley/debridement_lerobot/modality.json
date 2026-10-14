@@ -1,0 +1,46 @@
+{
+  "state": {
+    "psm1_pose": {
+      "start": 0,
+      "end": 7
+    },
+    "psm1_gripper": {
+      "start": 7,
+      "end": 8
+    },
+    "psm2_pose": {
+      "start": 8,
+      "end": 15
+    },
+    "psm2_gripper": {
+      "start": 15,
+      "end": 16
+    }
+  },
+  "action": {
+    "psm1_pose": {
+      "start": 0,
+      "end": 7
+    },
+    "psm1_gripper": {
+      "start": 7,
+      "end": 8
+    },
+    "psm2_pose": {
+      "start": 8,
+      "end": 15
+    },
+    "psm2_gripper": {
+      "start": 15,
+      "end": 16
+    }
+  },
+  "video": {
+    "camera_left": {
+      "original_key": "observation.images.left"
+    },
+    "camera_right": {
+      "original_key": "observation.images.right"
+    }
+  }
+}
