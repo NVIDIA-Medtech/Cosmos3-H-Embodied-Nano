@@ -25,11 +25,6 @@ CMR_VALID_WINDOW_INDEX = f"{DATA_ROOT}/indices/cmr_valid_windows_c24_stride8_rej
 # Default: the exclusion list shipped with this package (absolute, as training may change the working directory).
 _SHIPPED_EXCLUSIONS = Path(__file__).resolve().parents[1] / "data" / "exclusions" / "openh_h16_exclusions.json"
 EXCLUSION_OVERLAY = "${oc.env:OPENH_EXCLUSIONS," + str(_SHIPPED_EXCLUSIONS) + "}"
-# The exclusions the released checkpoint's training actually applied (reference experiment):
-# the 10 Stanford peg_transfer episodes were not excluded there.
-AS_TRAINED_EXCLUSION_OVERLAY = (
-    "${oc.env:OPENH_EXCLUSIONS," + str(_SHIPPED_EXCLUSIONS.with_name("openh_h16_exclusions_as_trained.json")) + "}"
-)
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,7 @@ Experiments:
 
 * ``openh_h16_task_prompt``: Open-H roots available on Hugging Face, per-root caption contexts.
 * ``openh_h16_task_prompt_reference``: the exact training mixture of the released checkpoint
-  (55 roots, some not public) with the caption contexts and episode exclusions it was trained with.
+  (55 roots, some not public) with the caption contexts it was trained with.
 
 Both continue from a model checkpoint (``checkpoint.load_path``, a DCP directory; convert the
 released ``.pt`` with ``tools/convert_checkpoint_to_dcp.py``). Data paths come from
@@ -24,7 +24,7 @@ import cosmos_framework
 from hydra.core.config_store import ConfigStore
 
 from cosmos3_h_embodied.callbacks.action_dataloader_state import ActionDataLoaderStateCallback
-from cosmos3_h_embodied.configs.openh_datasets import AS_TRAINED_EXCLUSION_OVERLAY, build_dataset_entries
+from cosmos3_h_embodied.configs.openh_datasets import build_dataset_entries
 from cosmos3_h_embodied.data.dataloaders import InfiniteDataLoader
 from cosmos3_h_embodied.data.joint_dataloader import HistoryMatchedJointDataLoader
 from cosmos3_h_embodied.data.unified_dataset import wrap_dataset
@@ -245,7 +245,6 @@ openh_h16_task_prompt_reference = _experiment(
     include_nonpublic=True,
     caption_prefix_mode="legacy",
     lr_schedule="as_trained",
-    exclude_episodes_overlay=AS_TRAINED_EXCLUSION_OVERLAY,
 )
 # Smoke test on a few families with one GPU: per-sample family mixing (fewer ranks than
 # families), a window cap, and few workers. Combine with COSMOS_SMOKE=1 (2-layer model).

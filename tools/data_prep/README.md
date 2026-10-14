@@ -12,7 +12,7 @@ pins the lerobot revision used to build the training data.
 |---|---|---|
 | C | v2.1 → v3.0 conversion, out of place. Videos are stream-copied, so decoded frames equal the source. Absolute timestamps are rewritten to episode-relative `frame_index / fps`. `modality.json`, `episodes.*_vlm_qwen3.jsonl` and `annotations.jsonl` are carried over. | `convert_v21_to_v30.py` |
 | BF | Write the missing `meta/episodes_stats.jsonl` (`--mode exact` or `--mode synthesize`, as listed per root). This affects metadata only. | `episodes_stats.py` |
-| VC | Video-complete shim: drops episodes without a video for every view and renumbers them 0..K-1. Episode IDs, and therefore the train/val split, change. | `video_complete_shim.py` |
+| VC | Video-complete shim: drops episodes without a video for every view and renumbers them 0..K-1. Episode IDs, and therefore the train/val split, change. It also removes `info.json` `splits`, so the outcome splits (failure episodes kept out of the policy mode) do not apply to these roots, as in training. | `video_complete_shim.py` |
 | T | Timestamp repair, out of place: `timestamp = frame_index / fps` with timestamp stats recomputed. `--verify-root` checks the result on values. | `repair_timestamps.py` |
 | I | Row-index repair, out of place: `index` = physical row position. | `repair_row_indices.py` |
 | VW | Video-window fix: clips `to_timestamp` of episodes whose video window overshoots the kinematics length. Runs in place on the episode metadata and is idempotent. | `fix_video_window.py` |
@@ -22,19 +22,19 @@ pins the lerobot revision used to build the training data.
 | S1–S6 | SMARTS chain (see below). | `smarts_*.py` |
 | X | Episode exclusions: the overlay file given to the loaders (`exclude_episodes_overlay`), keyed by root path. This is not a data rewrite. | — |
 | W | CMR valid-window index (`.npz`) given to the CMR loaders (`valid_window_index_path`). The recipe expects it at `<data root>/indices/cmr_valid_windows_c24_stride8_reject_any_v2.npz`; build it over the CMR roots with the defaults (fps 10, chunk 24, stride 8, threshold 5000, `reject_any`) and `PYTHONPATH=<repository root>`. | `build_cmr_valid_window_index.py` |
-| E / DS / GOP | Video re-encodes: AV1/MPEG-4 → H.264, downscale to 854x480, short-GOP. | **TODO**, to be verified against fork data |
+| E | Re-encode the training view to H.264 (`libx264 -preset fast -crf 20`, default GOP), in place, frame count checked. Settings from the training videos' x264 headers. | `reencode_videos.py --view <key>` |
+| DS | Downscale + re-encode: `--scale 854x480 --crf 18` (Lanczos). | `reencode_videos.py --view <key> --scale 854x480 --crf 18` |
 
 Run conversions in place of the upstream layout: for example, `--src-root <hf>/Surgical --dst-root <data>`
 mirrors the relative paths. The loaders and the exclusion overlay identify roots by these relative paths.
 
 **Equivalence.** Parquet values are identical for C, T, I, VW and the SMARTS chain, but the bytes differ (writer
-version and compression). Stream-copied video decodes to identical frames. Re-encoded roots (E, DS, GOP) can
-only be approximately reproduced: different ffmpeg/x264 builds and Lanczos scaling differ at codec-noise level,
-and the downscale step has no frame-count check.
+version and compression). Stream-copied video decodes to identical frames. Re-encoded roots (E, DS) can
+only be approximately reproduced: different ffmpeg/x264 builds differ at codec-noise level.
 
 ## Per-root chains (training roots, in order)
 
-Steps marked ✱ have no published script yet: **TODO, to be verified against fork data**.
+Steps marked ✱ are approximate (see the notes of the root).
 
 ### cmr_clinical
 
@@ -65,9 +65,9 @@ The per-frame instruction texts used for training captions (`instruction.text_wi
 | `jhu/imerse/wound_closure/point_labeled/fausto_0_1_jesse_0_1_2_labeled` | C → clean-video twin (**not public**) → X (3 misaligned episodes) |
 | `jhu/imerse/nephfat/nephfat` | C → T → VW → X (7 non-monotonic-timestamp episodes) |
 | `jhu/imerse/srt_tissue_lift` | C only |
-| `jhu/imerse/cao_cautery_combined` | C → E (`endoscope.left`) ✱ → T |
-| `jhu/imerse/srth_porcine_chole` | BF exact → C → E ✱; timestamps must be episode-relative (verify with `repair_timestamps.py --verify-root`, apply T if not). The exact training lineage is uncertain. |
-| `jhu/lcsr/arcade/cholecystectomy` | C → M (authored 16-D quat-7 modality; none on HF) → E ✱ |
+| `jhu/imerse/cao_cautery_combined` | C → E (`observation.images.endoscope.left`) → T |
+| `jhu/imerse/srth_porcine_chole` | BF exact → C → E (`observation.images.endoscope.left`); timestamps must be episode-relative (verify with `repair_timestamps.py --verify-root`, apply T if not). The exact training lineage is uncertain. |
+| `jhu/lcsr/arcade/cholecystectomy` | C → M (authored 16-D quat-7 modality; none on HF) → E (`observation.images.endoscope.left`) |
 | SutureBot "canonical" roots `suturebot_tissue_2`, `suturing_jesse`, `jesse_pickup` | **not public** |
 
 ### dvrk_suturebot_mono
@@ -78,7 +78,7 @@ The per-frame instruction texts used for training captions (`instruction.text_wi
 
 | Root | Chain |
 |---|---|
-| `stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/peg_transfer` | C → SF → T → I → X (10 frozen; not applied in the released checkpoint's training, see the design log) |
+| `stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/peg_transfer` | C → SF → T → I → X (10 frozen) |
 | `.../needle_transfer` | C → SF → T → X (89) |
 | `.../tissue_retraction` | C → SF → T → X (190) |
 
@@ -95,7 +95,7 @@ python tools/data_prep/smarts_fix_task_index_positional.py --root $S
 
 | Root | Chain |
 |---|---|
-| `rob_surgical/all_merged_data` | BF synthesize → C → D (`observation.meta.{left,right,aux}_tool`) → E ✱ (→ GOP ✱?). `instruction.text` is kept. |
+| `rob_surgical/all_merged_data` | BF synthesize → C → D (`observation.meta.{left,right,aux}_tool`) → E (`observation.images.endoscope`) ✱. `instruction.text` is kept. The training video has a keyframe every 26 frames; E uses x264's default GOP, which changes only seek cost, not decoded frames beyond codec noise. |
 
 ### dvrk_ustc
 
@@ -128,12 +128,12 @@ M then installs the quat-7 modality over the remapped columns.
 
 | Root | Chain | Training totals (episodes / frames) |
 |---|---|---|
-| `turin/mitic_lerobot_plastic_tube` | C → E ✱ → DS ✱ (H.264 854x480) | 480 / 216,070 |
-| `turin/mitic_lerobot_ex_vivo` | VC → BF exact → C → modality copy → E ✱ → DS ✱ | 792 / 387,204 |
+| `turin/mitic_lerobot_plastic_tube` | C → DS (`observation.images.endoscope.left`) | 480 / 216,070 |
+| `turin/mitic_lerobot_ex_vivo` | VC → BF exact → C → modality copy → DS | 792 / 387,204 |
 | `turin/mitic_lerobot_plastic_pad` | same as `ex_vivo` | 544 / 149,070 |
 | `turin/mitic_lerobot_plastic_pad_3dmed` | same as `ex_vivo` | 368 / 242,946 |
 
-The training videos are H.264 854x480, although `info.json` still describes the source AV1 1920x1080. Approximate.
+The training videos are H.264 854x480 (CRF 18), although `info.json` still describes the source AV1 1920x1080. DS encodes from the AV1 source in one pass; whether training had an intermediate full-size H.264 pass cannot be told from the final file.
 
 ### cmr_versius_drybox_peg_transfer
 
@@ -149,7 +149,7 @@ and per-episode constant timestamps.
 
 | Root | Chain |
 |---|---|
-| `tud/260131_tundra_dataset/grasping_retraction` | BF exact (source stats contain NaN) → C → M (`modality/tud/260131_tundra_dataset/grasping_retraction/modality.json`; the upstream file is not valid JSON) → E ✱ (MPEG-4 → H.264, `laparoscope_left`) |
+| `tud/260131_tundra_dataset/grasping_retraction` | BF exact (source stats contain NaN) → C → M (`modality/tud/260131_tundra_dataset/grasping_retraction/modality.json`; the upstream file is not valid JSON) → E (MPEG-4 → H.264, `observation.images.laparoscope_left`) |
 
 ### dvrk_smarts
 

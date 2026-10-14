@@ -46,7 +46,6 @@ Each divergence is either a **default change** with a setting that restores the 
 |---|---|---|---|---|
 | 2026-10-13 | Caption prefix | The prefix lookup used a worker-local index (always 0) against a table keyed by global root index, and resolved embodiments by substrings of absolute paths. Effects: every `dvrk_jhu` sample gets the wound-closure description; every `cmr_clinical` sample gets the cholecystectomy description (and root 0's fallback text/segments); `dvrk_tud_grasping_retraction` gets the USTC description (a path component contained "ustc"). | Per-root prefixes, configured explicitly per root (no path-substring matching). | `caption_prefix_mode: legacy` reproduces the fork's effective prefixes. Equivalence tests use it; the released checkpoint was trained with it. |
 | 2026-10-13 | Family mixing | Rank-based: Hare–Niemeyer allocation of global ranks to families (≥1 rank per family); each DataLoader worker serves one shard. Depends on world size (needs ≥15 ranks). | Both offered: rank-based (`shard_across_workers: true`, fork-exact, used for equivalence) and per-sample mixing (`shard_across_workers: false`: every worker loads all families and draws a family per sample by ratio) for setups with fewer ranks than families. Both modes exist in the fork's code; only rank-based was used for training. | `shard_across_workers: true` |
-| 2026-10-14 | Episode exclusions | The overlay was looked up by exact absolute path. The Stanford `peg_transfer` training root (a row-index-repaired copy, not a symlink) did not match its overlay key, so its 10 frozen episodes were trained on (confirmed on the cluster); the other 292 exclusions were applied. | All 302 excluded (`openh_h16_exclusions.json`). | `openh_h16_exclusions_as_trained.json` (292; used by the reference experiment). |
 | 2026-10-13 | Action loss normalization | `normalize_action_loss_by_active=true`: action loss averaged over the active (noised) action rows only. CF averages over all action rows including clean history rows, which scales the action loss by 24/40 = 0.6 at h=16. Not a CF bug, a design difference. | Implemented in this package: `HistoryOmniMoTModel(normalize_action_loss_by_active=True)` wraps CF's `_compute_losses` and switches only the action loss call to `normalize_by_active=True` (no copy of the 300-line method). An internal test guards the CF call site it relies on. On in the H16 recipe. | — (same as fork) |
 
 ## 4. Data preparation
@@ -60,6 +59,8 @@ Each divergence is either a **default change** with a setting that restores the 
 | 2026-10-14 | `modality.json` files come from the HF dataset (the sample downloader now fetches them), except authored/fixed ones shipped under `tools/data_prep/modality/`. HF's Hamlyn files declare overlapping left/right columns (unusable); ARCADE has none on HF; the fork's fixed files are to be collected from the training data. |
 | 2026-10-14 | Training `modality.json` files collected for all 55 roots and compared with HF (semantic JSON equality). Equal: 36 public roots (incl. Stanford, whose HF file is already the authored pos3 + euler_xyz layout). Shipped from training: Hamlyn ×6 (right arm at `8:15` / `15:16`), UC Berkeley (quat-7 over the remapped Cartesian columns), ARCADE (absent on HF), TUD (same content as before). Wound closure differs only by the clean-video key of the non-public twin, so HF's file is used. |
 | 2026-10-14 | Column fixes as scripts: `drop_columns.py` (Stanford `observation.meta.tool_type`; Hamlyn `observation.meta.{left,right}_arm_tool`; rob_surgical `observation.meta.{left,right,aux}_tool`), `ucberkeley_remap.py` (state/action ← Cartesian columns, drop `next.done` and the v2.1 image-path strings, add `index`), and `smarts_fix_task_index_positional.py` reused for Stanford's per-leaf global `task_index`. Feature names and dtypes of the results equal the training data's `info.json` (Stanford, UC Berkeley; checked on the cluster). Value-level comparison with the training data is part of cluster validation. |
+| 2026-10-14 | Training `info.json` of all 55 roots compared with the local HF rebuilds: features (names, dtypes, shapes) are equal for every public root, except the non-public CMR `instruction.text_with_state` and wound-closure clean-twin videos. ARCADE and wound closure keep their string tool columns in training (no drop). Turin roots after VC have no `splits` in training (VC removes them; the rebuild does the same). |
+| 2026-10-14 | Exclusion list verified against what training applied: per root, the union of the `meta/exclude_episodes.json` sidecar and the overlay entry with the exact root path equals the shipped list (302 episodes, 7 roots). |
 | 2026-10-14 | Recipe roots mirror the HF layout below `Surgical/` (fix: SMARTS is `jhu/lcsr/smarts/...`). |
 
 ## 5. Removed internal tooling (non-behavioural)
@@ -73,9 +74,10 @@ Each divergence is either a **default change** with a setting that restores the 
 
 ## 6. Open items
 
-- ~~Stanford peg_transfer exclusions possibly not applied in training.~~ **Resolved 2026-10-14:** the training root is
-  not a symlink to the overlay key path, so the 10 exclusions were not applied; every other overlay key equals a
-  training root. See §3 (episode exclusions).
+- ~~Stanford peg_transfer exclusions possibly not applied in training.~~ **Resolved 2026-10-14: they were applied.**
+  The overlay key does not match the training root (a row-index-repaired copy, not a symlink), but every training
+  root also carries a `meta/exclude_episodes.json` sidecar, which the loader reads as well; the peg_transfer
+  sidecar lists the same 10 episodes. Per root, sidecar ∪ exact-path overlay entry equals the shipped list (302).
 - **Inference parity, fork vs port (2026-10-14).** Same released checkpoint, same USTC samples, seed 20260908.
   Model inputs (video, actions with history, caption, plan, domain id) are bit-identical. One sampling step without
   guidance differs by 0.8% relative RMS (bf16-level numerics: fp32 action targets, grouped-matmul action projections,
@@ -102,6 +104,11 @@ Each divergence is either a **default change** with a setting that restores the 
   Internal equivalence tests against the fork cover every reproducible part (and run on the cluster on the fork's data).
 - **Re-encoded videos.** Several roots were re-encoded (AV1/MPEG-4 → H.264, some downscaled). Re-encoding is not
   byte-reproducible; decoded frames will match only to codec-noise level. Stream-copied roots decode identically.
+  2026-10-14: settings taken from the training videos' x264 headers (CAO, SRT-H, ARCADE, rob_surgical, TUD: preset
+  fast, CRF 20, default GOP; Turin: Lanczos 854x480, CRF 18) and implemented in `tools/data_prep/reencode_videos.py`,
+  which also checks that no frames are lost. The fork's first AV1 → H.264 pass is documented to have dropped frames
+  on CAO and SRT-H (videos shorter than the kinematics; episode tails unusable); if the training copies still show
+  this, the rebuilt roots have more usable windows than training had. To be checked on the cluster (frame counts).
 - **Undocumented in-place fixes** (Stanford, Hamlyn, UC Berkeley, rob_surgical column changes, authored `modality.json`
   files) had no committed scripts in the fork. Re-implemented 2026-10-14 (§4); with them every local HF sample root of
   these families loads and gives samples identical to the fork's dataset code. Value-level comparison with the fork's
