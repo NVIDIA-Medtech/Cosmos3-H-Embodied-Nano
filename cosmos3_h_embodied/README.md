@@ -112,6 +112,12 @@ python -m cosmos3_h_embodied.scripts.eval --no-guardrails \
 The datasets switch the Hugging Face hub to offline mode (`HF_HUB_OFFLINE=1`) unless it is set; the first
 evaluation or serving run downloads the VAE and tokenizer, so start it with `HF_HUB_OFFLINE=0`.
 
+Classifier-free guidance runs both branches on every rank (`--cfgp-size 1` is the default here): cosmos-framework's
+CFG parallelism, its default with two or more ranks, gives a wrong unconditional velocity for this model and
+degrades guided predictions. On the `val` and `full` splits the eval also turns off the training-time video
+augmentation (`EVAL_DATASET_OVERRIDES` in `configs/experiment_h16.py`), so the model is conditioned on and scored
+against clean frames.
+
 `--dataset.model-mode joint` runs forward dynamics, inverse dynamics and policy (`wam`). Per-sample
 `metrics.json` and `metrics_aggregate.json` hold video PSNR (forward dynamics, policy) and action MSE
 (inverse dynamics, policy) in normalized action space; history rows are excluded from the action MSE.

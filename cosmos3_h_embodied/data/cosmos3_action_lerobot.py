@@ -376,16 +376,18 @@ def match_overlay_root(overlay_roots: "dict[str, Any]", root: "str | Path") -> s
 
     An absolute key must equal the resolved root path. A relative key (e.g. the
     dataset's path inside the Open-H repository, ``jhu/imerse/nephfat/nephfat``)
-    matches when it equals the trailing components of the resolved root path, so the
-    same overlay file works wherever the data is stored. More than one match is an error.
+    matches when it equals the trailing components of the root path, as given or with
+    symlinks resolved, so the same overlay file works wherever the data is stored
+    (including a data directory of symlinks). More than one match is an error.
     """
     resolved = Path(root).resolve()
     if str(resolved) in overlay_roots:
         return str(resolved)
+    candidates = (Path(_os.path.abspath(root)).parts, resolved.parts)
     matches = []
     for key in overlay_roots:
         parts = Path(key).parts
-        if parts and not Path(key).is_absolute() and resolved.parts[-len(parts) :] == parts:
+        if parts and not Path(key).is_absolute() and any(c[-len(parts) :] == parts for c in candidates):
             matches.append(key)
     if len(matches) > 1:
         raise ValueError(f"Exclusion overlay keys {matches} all match root {resolved}")

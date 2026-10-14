@@ -10,7 +10,7 @@ pins the lerobot revision used to build the training data.
 
 | Code | Step | Script |
 |---|---|---|
-| C | v2.1 → v3.0 conversion, out of place. Videos are stream-copied, so decoded frames equal the source. Absolute timestamps are rewritten to episode-relative `frame_index / fps`. `modality.json`, `episodes.*_vlm_qwen3.jsonl` and `annotations.jsonl` are carried over. | `convert_v21_to_v30.py` |
+| C | v2.1 → v3.0 conversion, out of place. Videos are stream-copied, so decoded frames equal the source. Absolute timestamps are rewritten to episode-relative `frame_index / fps` (float64, as in training). `modality.json`, `episodes.*_vlm_qwen3.jsonl` and `annotations.jsonl` are carried over. | `convert_v21_to_v30.py` |
 | BF | Write the missing `meta/episodes_stats.jsonl` (`--mode exact` or `--mode synthesize`, as listed per root). This affects metadata only. | `episodes_stats.py` |
 | VC | Video-complete shim: drops episodes without a video for every view and renumbers them 0..K-1. Episode IDs, and therefore the train/val split, change. It also removes `info.json` `splits`, so the outcome splits (failure episodes kept out of the policy mode) do not apply to these roots, as in training. | `video_complete_shim.py` |
 | T | Timestamp repair, out of place: `timestamp = frame_index / fps` with timestamp stats recomputed. `--verify-root` checks the result on values. | `repair_timestamps.py` |
@@ -29,8 +29,9 @@ Run conversions in place of the upstream layout: for example, `--src-root <hf>/S
 mirrors the relative paths. The loaders and the exclusion overlay identify roots by these relative paths.
 
 **Equivalence.** Parquet values are identical for C, T, I, VW and the SMARTS chain, but the bytes differ (writer
-version and compression). Stream-copied video decodes to identical frames. Re-encoded roots (E, DS) can
-only be approximately reproduced: different ffmpeg/x264 builds differ at codec-noise level.
+version and compression). Stream-copied video decodes to identical frames. Re-encoded roots (E, DS) depend on the
+ffmpeg/x264 build: with ffmpeg 6.1.1 (Ubuntu 24.04 packages), E reproduced the training videos frame-exactly; DS
+(Turin) differs at codec-noise level (about 40 dB PSNR). Other builds differ at codec-noise level.
 
 ## Per-root chains (training roots, in order)
 
@@ -65,8 +66,8 @@ The per-frame instruction texts used for training captions (`instruction.text_wi
 | `jhu/imerse/wound_closure/point_labeled/fausto_0_1_jesse_0_1_2_labeled` | C → clean-video twin (**not public**) → X (3 misaligned episodes) |
 | `jhu/imerse/nephfat/nephfat` | C → T → VW → X (7 non-monotonic-timestamp episodes) |
 | `jhu/imerse/srt_tissue_lift` | C only |
-| `jhu/imerse/cao_cautery_combined` | C → E (`observation.images.endoscope.left`) → T |
-| `jhu/imerse/srth_porcine_chole` | BF exact → C → E (`observation.images.endoscope.left`); timestamps must be episode-relative (verify with `repair_timestamps.py --verify-root`, apply T if not). The exact training lineage is uncertain. |
+| `jhu/imerse/cao_cautery_combined` | C → E (`observation.images.endoscope.left`) → T (`--allow-relative`: C already rewrote the absolute timestamps; T recomputes the timestamp statistics, as in training) |
+| `jhu/imerse/srth_porcine_chole` | BF exact → C → E (`observation.images.endoscope.left`). C rewrites the absolute timestamps to episode-relative values, as in training (check with `repair_timestamps.py --verify-root`); no T. |
 | `jhu/lcsr/arcade/cholecystectomy` | C → M (authored 16-D quat-7 modality; none on HF) → E (`observation.images.endoscope.left`) |
 | SutureBot "canonical" roots `suturebot_tissue_2`, `suturing_jesse`, `jesse_pickup` | **not public** |
 

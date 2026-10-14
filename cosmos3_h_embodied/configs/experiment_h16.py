@@ -35,6 +35,14 @@ from cosmos_framework.utils.lazy_config import LazyDict
 
 MAX_SEQUENCE_LENGTH = 5040
 
+# Experiment overrides for evaluating on the val/full split: video augmentation is training-only
+# (the eval must condition on and score clean frames). cosmos-framework's dataset loading
+# disables only caption dropout for these splits.
+EVAL_DATASET_OVERRIDES = (
+    "dataloader_train.dataloaders.action_data.dataloader.dataset.video_augment=null",
+    "dataloader_train.dataloaders.action_data.dataloader.dataset.video_augment_cuda_families=[]",
+)
+
 
 def h16_model_config() -> dict:
     """Cosmos3-Nano model config with the H16 recipe's changes."""

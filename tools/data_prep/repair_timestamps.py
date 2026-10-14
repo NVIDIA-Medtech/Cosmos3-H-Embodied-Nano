@@ -7,6 +7,9 @@ The source is never modified. Metadata and data parquet files are copied, ``time
 is replaced with ``frame_index / fps`` (episode-relative, the v3.0 convention),
 ``meta/episodes`` and ``meta/stats.json`` timestamp statistics are recomputed, and
 ``videos/`` is symlinked to the source. Data parquet files are written with zstd.
+A source whose timestamps are already episode-relative is refused unless
+``--allow-relative`` is given (the data values then stay the same; only the timestamp
+statistics are recomputed, e.g. after the converter rewrote absolute timestamps).
 
 ``--verify-root`` checks a repaired root on values: every row must satisfy
 ``|timestamp - frame_index / fps| <= 1e-4`` and ``videos/`` must resolve to a directory.
@@ -16,7 +19,7 @@ parquet writer version and need not match across environments.
 
 Usage::
 
-    python tools/data_prep/repair_timestamps.py --source <v30 root> --destination <new root>
+    python tools/data_prep/repair_timestamps.py --source <v30 root> --destination <new root> [--allow-relative]
     python tools/data_prep/repair_timestamps.py --verify-root <repaired root>
 """
 
@@ -75,7 +78,9 @@ def _timestamp_stats(lengths: np.ndarray, fps: float) -> dict[str, list[float | 
     }
 
 
-def repair(source: Path, destination: Path, *, expected_fps: float | None = None) -> dict:
+def repair(
+    source: Path, destination: Path, *, expected_fps: float | None = None, allow_relative: bool = False
+) -> dict:
     source = source.resolve()
     destination = destination.absolute()
     if source == destination.resolve(strict=False):
@@ -116,7 +121,7 @@ def repair(source: Path, destination: Path, *, expected_fps: float | None = None
         lengths.append(end - start)
     if bad_frame_sequences:
         raise ValueError(f"non-contiguous frame_index in episodes {bad_frame_sequences[:20]}")
-    if timestamp_violations == 0 and timestamp_semantic_violations == 0:
+    if timestamp_violations == 0 and timestamp_semantic_violations == 0 and not allow_relative:
         raise ValueError("source timestamps are already episode-relative and strictly increasing; refusing repair")
 
     partial = destination.with_name(destination.name + ".partial")
@@ -219,6 +224,9 @@ def main() -> int:
     parser.add_argument("--source", type=Path)
     parser.add_argument("--destination", type=Path)
     parser.add_argument("--expected-fps", type=float)
+    parser.add_argument(
+        "--allow-relative", action="store_true", help="repair even if timestamps are already episode-relative"
+    )
     parser.add_argument("--verify-root", type=Path)
     parser.add_argument("--expected-data-sha256", help="with --verify-root: also pin the data tree hash")
     args = parser.parse_args()
@@ -229,7 +237,8 @@ def main() -> int:
         return 0
     if args.source is None or args.destination is None:
         parser.error("repair mode requires --source and --destination")
-    print(json.dumps(repair(args.source, args.destination, expected_fps=args.expected_fps), indent=2, sort_keys=True))
+    report = repair(args.source, args.destination, expected_fps=args.expected_fps, allow_relative=args.allow_relative)
+    print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 
 
