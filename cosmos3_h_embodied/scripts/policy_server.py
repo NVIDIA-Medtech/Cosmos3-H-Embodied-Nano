@@ -276,13 +276,7 @@ class PolicyService:
             raise RuntimeError("CUDA is required")
         maybe_init_distributed()
         overrides = OmniSetupOverrides.model_validate(
-            # cfgp_size=1: CFG parallelism gives a wrong unconditional velocity for this model (see eval.py).
-            dict(
-                checkpoint_path=args.checkpoint_path,
-                config_file=args.config_file,
-                experiment=args.experiment,
-                cfgp_size=1,
-            )
+            dict(checkpoint_path=args.checkpoint_path, config_file=args.config_file, experiment=args.experiment)
         )
         overrides.output_dir = args.output_dir
         overrides.guardrails = False

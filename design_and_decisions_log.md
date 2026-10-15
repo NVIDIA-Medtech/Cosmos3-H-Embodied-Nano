@@ -24,8 +24,7 @@ Terminology:
 | 2026-10-13 | Recipe as a Hydra experiment registered by `cosmos3_h_embodied/configs/config.py` (CF's `make_config` + this package's experiments). CF's own tools take it as `--config-file` (`export_config`, then `_train --config-file <exported yaml>`); no CF patch, no copied entry point. Model config = CF's `NANO_MODEL_CONFIG` plus the recipe delta (fork Nano config → fork H16 config). | An (internal) test exports the reference experiment and diffs it against the fork's resolved training config; every remaining difference is on an explicit allowlist (moved keys, inert CF-only defaults, documented divergences). |
 | 2026-10-13 | `fsdp_reduce_dtype: float32` and `cpu_offloading_activations: false` set explicitly. | The fork reduced gradients in fp32; CF's default for this config reduces in bf16. Found by the config diff. |
 | 2026-10-13 | Released checkpoint → training: `tools/convert_checkpoint_to_dcp.py` writes the `.pt` network weights as a DCP `model` component (`net.*` and `net_ema.*`, original dtype; DCP casts to fp32 on load). CF's checkpointer does not load `.pt` files. | Verified: the model built from the public config has exactly the checkpoint's 809 tensors (names and shapes). |
-| 2026-10-14 | Evaluation and the policy server run classifier-free guidance without CFG parallelism (`cfgp_size=1` unless set explicitly). With CF's default (`cfgp_size=2` from two ranks on), the unconditional velocity received from the peer rank differs by about 6% on the action rows from the same branch computed locally, so guided (g=6) action and video predictions degrade (one family: inverse-dynamics action MSE 0.09 vs 0.016). With `cfgp_size=1` the port matches the fork. Parallelism only; no change in semantics. To be reported to cosmos-framework. | Silent quality loss in the default multi-GPU eval. |
-| 2026-10-14 | Evaluation on the `val`/`full` split disables the training-time video augmentation (`EVAL_DATASET_OVERRIDES`: `video_augment=null`, no CUDA augmentation routing), as the fork's eval does. CF's dataset loading for these splits disables only caption dropout, so the eval read the training dataloader config with rotation/crop/colour jitter still on: the model was conditioned on augmented frames and generated video was scored against clean ground truth (inverse-dynamics action MSE 1.3–3× the fork's in every family, forward-dynamics PSNR up to 1.7 dB lower). The policy server never augmented. | Eval must condition on and score clean holdout frames. |
+| 2026-10-14 | Evaluation on the `val`/`full` split disables the training-time video augmentation (`EVAL_DATASET_OVERRIDES`: `video_augment=null`, no CUDA augmentation routing), as the fork's eval does. CF's dataset loading for these splits disables only caption dropout, so the eval read the training dataloader config with rotation/crop/colour jitter still on: the model was conditioned on augmented frames and generated video was scored against clean ground truth (inverse-dynamics action MSE 1.3–3× the fork's in every family, forward-dynamics PSNR up to 1.7 dB lower). The policy server never augmented. **Correction 2026-10-15:** this was first attributed to CF's CFG parallelism (`cfgp_size=2`), and eval and policy server were set to `cfgp_size=1`. The cause was the augmentation: each rank augments with its own random state, so the peer rank computing the unconditional branch saw differently augmented frames. With augmentation off, `cfgp_size=2` matches the fork (one family, 8 samples per mode); the `cfgp_size=1` default was withdrawn and CF's default applies. | Eval must condition on and score clean holdout frames. |
 
 ## 2. Scope
 
@@ -39,6 +38,7 @@ Terminology:
 | 2026-10-14 | Release checkpoint format: bf16 network weights (an fp32 export exists). Training from it is unaffected: DCP casts bf16 exactly into the fp32 FSDP master weights; action targets stay fp32 (CF). |
 | 2026-10-14 | Experiments: `openh_h16_task_prompt` (HF-only, 11 families), `openh_h16_task_prompt_reference` (55 training roots, 15 families, legacy captions, LR as trained), `openh_h16_task_prompt_smoke` (5 families, per-sample mixing, window cap; one GPU with `COSMOS_SMOKE=1`). |
 | 2026-10-14 | **Correction.** The bf16 export used for the earlier local checkpoint-compatibility and inference-parity checks was the H16 50k checkpoint of the *generic-prompt* continuation (every family captioned "Continue the ongoing surgical task."), not the task-prompt one. Identified by comparing its tensors with both training runs' checkpoints. Both have the same architecture and 809 tensors; they differ in the generation-pathway weights. All validation below uses the task-prompt 50k checkpoint (network weights `net.*`, all bf16 in the source). |
+| 2026-10-15 | Released weights = the regular network weights (`net.*`), not the EMA weights. They are bf16 in the training checkpoint (lossless export; the EMA weights are fp32 and would be cast), they are what all validation in §7 used, and they are what the original export of this checkpoint shipped. No difference between the two was measured on a pilot evaluation. |
 
 ## 3. Divergences from the fork (behavioural)
 
@@ -90,8 +90,8 @@ Each divergence is either a **default change** with a setting that restores the 
   few percent per sample. Treated as a residual numerical difference; aggregate eval metrics on a larger sample set are the
   acceptance check. Eval semantics: CF names the policy mode `wam`; dataset batches carry no negative prompt in either
   code base (unconditional branch = empty caption).
-  **Resolved 2026-10-14** (§7, D3): the aggregate check first showed two port-side eval defects, both fixed (§1): CFG
-  parallelism and training-time video augmentation left on in the eval. After the fixes, the action velocity of the first
+  **Resolved 2026-10-14** (§7, D3): the aggregate check showed a port-side eval defect, fixed (§1): training-time video
+  augmentation was left on in the eval. After the fix, the action velocity of the first
   sampling step agrees to 0.4–0.5% relative; the remaining input difference is the conditioning video, which the fork
   normalizes in bf16 and the port in fp32 (at most one bf16 step).
 - ~~**LR schedule when continuing from the released checkpoint (2026-10-13, open).**~~ **Resolved 2026-10-14**, see §2. The recipe copies the fork's
@@ -172,4 +172,5 @@ data. Same checkpoint on both sides (the released task-prompt checkpoint, iterat
   all 28 action-MSE cells within 3 standard errors (relative difference median +0.2%, range −2.9% to +7.7%;
   inverse dynamics within 2%). PSNR: 22 of 28 cells within 3 SE; the port is lower by a median of 0.02 dB (range −0.08 to
   +0.02 dB). The remaining PSNR offset is small but consistent in sign and is attributed to the fp32/bf16 precision
-  differences above (not verified separately).
+  differences above (not verified separately). The port ran without CFG parallelism (`cfgp_size=1`); one family
+  re-run with CF's default (`cfgp_size=2`) gives the same per-sample results within noise.
