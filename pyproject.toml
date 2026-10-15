@@ -3,7 +3,7 @@
 
 # Installs the ``cosmos3_h_embodied`` package (Open-H surgical training and inference on
 # cosmos-framework). Install cosmos-framework first (validated at revision 7cfaf78, see
-# cosmos3_h_embodied/README.md), then: ``pip install -e .`` in the same environment.
+# README.md), then: ``pip install -e .`` in the same environment.
 
 [build-system]
 requires = ["hatchling"]
@@ -16,7 +16,7 @@ description = "Cosmos3-H-Embodied-Nano: Open-H surgical robotics recipes (H16 ac
 authors = [{ name = "NVIDIA Corporation" }]
 requires-python = ">=3.10,<3.14"
 license = { text = "OpenMDW-1.1" }
-readme = "cosmos3_h_embodied/README.md"
+readme = "README.md"
 dependencies = [
   "cosmos-framework",
 ]

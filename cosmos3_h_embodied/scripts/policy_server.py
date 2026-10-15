@@ -14,7 +14,7 @@ Endpoints:
       {
         "image": "<base64 PNG, current endoscope frame>",
         "prompt": "<caption text, e.g. caption context + task, as in training>",
-        "domain_name": "<embodiment, e.g. dvrk_hamlyn>",        # optional, server default otherwise
+        "domain_name": "<embodiment, e.g. hamlyn>",        # optional, server default otherwise
         "image_size": <int>,                                  # optional, see below
         "history_action": [[...], ...],                       # optional, [nH, raw_dim], nH <= 16
         "guidance": <float>, "num_steps": <int>, "seed": <int>,  # optional overrides
@@ -276,13 +276,7 @@ class PolicyService:
             raise RuntimeError("CUDA is required")
         maybe_init_distributed()
         overrides = OmniSetupOverrides.model_validate(
-            # cfgp_size=1: CFG parallelism gives a wrong unconditional velocity for this model (see eval.py).
-            dict(
-                checkpoint_path=args.checkpoint_path,
-                config_file=args.config_file,
-                experiment=args.experiment,
-                cfgp_size=1,
-            )
+            dict(checkpoint_path=args.checkpoint_path, config_file=args.config_file, experiment=args.experiment)
         )
         overrides.output_dir = args.output_dir
         overrides.guardrails = False
