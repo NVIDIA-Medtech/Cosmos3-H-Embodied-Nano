@@ -41,9 +41,10 @@ file `model_bf16.pt` (the network weights in bf16).
 
 ## Install
 
-1. Install cosmos-framework following its instructions. This package was validated against revision `7cfaf78`
-   (`git checkout 7cfaf7854b2114eda5deb36250a7e8f00c64d69e`).
-2. In the same environment, from this repository's root: `pip install -e .`
+1. Install cosmos-framework following its instructions (`uv sync ...`). This package was validated against revision
+   `7cfaf78` (`git checkout 7cfaf7854b2114eda5deb36250a7e8f00c64d69e`).
+2. With that environment activated (`source <cosmos-framework>/.venv/bin/activate`), from this repository's root:
+   `uv pip install -e .` (the uv environment has no `pip` of its own).
 
 All commands below run from this repository's root with the cosmos-framework environment active.
 
@@ -112,7 +113,7 @@ export OPENH_DATA_ROOT=<data root>     # mirrors the Hugging Face layout below S
 |---|---|---|---|
 | `openh_h16_task_prompt` | the Open-H roots on Hugging Face (11 families) | per-root robot description | constant 1e-5 after 100 warm-up steps (the rate training ended at) |
 | `openh_h16_task_prompt_reference` | the exact 55-root training mixture (15 families; some roots are not public) | as trained (`caption_prefix_mode: legacy`) | as trained (linear 8e-5 → 1e-5 over 50,000 iterations) |
-| `openh_h16_task_prompt_smoke` | 5 families, window cap, per-sample family mixing | per-root | constant |
+| `openh_h16_task_prompt_smoke` | 2 families (obuda, UCSD), window cap, per-sample family mixing | per-root | constant |
 
 The experiments use **rank-based family mixing**: each GPU rank serves one dataset family, and ranks are allocated
 by mixture ratio. This needs at least as many ranks as families (11 for the Hugging Face mixture). With fewer ranks,
@@ -135,9 +136,12 @@ Checkpoints (model, EMA and optimizer state, several times the size of the relea
 and a `job` link to that directory. Restarting the same command resumes from the latest checkpoint, with the action
 dataloader position and RNG state restored per worker.
 
-Smoke test on one GPU with a 2-layer model, on a few episodes per dataset from `tools/download_openh_samples.py`:
+Smoke test on one GPU with a 2-layer model, on a few episodes of two families:
 
 ```bash
+python tools/download_openh_samples.py --output-dir samples_v21 --families dvrk_obuda dvrk_ucsd
+python tools/data_prep/convert_v21_to_v30.py --src-root samples_v21 --dst-root samples
+export OPENH_DATA_ROOT=$PWD/samples
 python -m cosmos_framework.scripts.export_config -o smoke.yaml \
     --config-file cosmos3_h_embodied/configs/config.py --experiment openh_h16_task_prompt_smoke
 COSMOS_SMOKE=1 torchrun --nproc_per_node=1 -m cosmos_framework.scripts._train --config-file smoke.yaml -o outputs \
@@ -156,8 +160,15 @@ Data from a bimanual (or single-arm) surgical robot with Cartesian end-effector 
    end-effector pose, the action each arm's gripper command (and, with `pose_source="action"`, the commanded pose).
 2. **`meta/modality.json`** that names the columns per arm, in both the `state` and the `action` block:
    `<arm>_pose` (7 columns: position + quaternion, set `quaternion_order` to `xyzw` or `wxyz`; or 6 columns:
-   position + Euler XYZ in radians) and `<arm>_gripper` (1 column, optional). See
-   `tools/data_prep/modality/hamlyn/peg_transfer/modality.json` for an example.
+   position + Euler XYZ in radians) and `<arm>_gripper` (1 column, optional). For two arms with 16-D state and
+   action:
+
+   ```json
+   {"state":  {"psm1_pose": {"start": 0, "end": 7}, "psm1_gripper": {"start": 7, "end": 8},
+               "psm2_pose": {"start": 8, "end": 15}, "psm2_gripper": {"start": 15, "end": 16}},
+    "action": {"psm1_pose": {"start": 0, "end": 7}, "psm1_gripper": {"start": 7, "end": 8},
+               "psm2_pose": {"start": 8, "end": 15}, "psm2_gripper": {"start": 15, "end": 16}}}
+   ```
 3. **An embodiment.** The model has 32 embodiment slots for its action projections, all of them assigned
    (`EMBODIMENT_TO_DOMAIN_ID` in `cosmos3_h_embodied/data/domain_utils.py`). Reuse the embodiment of the most similar
    robot: for example, `hamlyn` or `dvrk_obuda` for a dVRK with two patient-side manipulators. Captions are
@@ -187,6 +198,7 @@ Data from a bimanual (or single-arm) surgical robot with Cartesian end-effector 
 
    ```bash
    python tools/compute_action_normalizer.py --family my_lab
+   OPENH_TEST_FAMILIES=my_lab pytest tests/test_prepared_data.py   # check a few samples
    ```
 
 Each tutorial below registers an experiment, trains from the released checkpoint (`<ckpt_dcp>`, see
@@ -248,6 +260,13 @@ Training on a single mode specializes the model. To keep its other abilities, ke
 forward dynamics, inverse dynamics and policy 0.4 / 0.2 / 0.4, set by `joint_mode_weights`) or add Open-H families to
 `families`.
 
+## Tests
+
+`pytest` runs the package's CPU tests. Two checks are opt-in:
+`H16_CHECKPOINT=model_bf16.pt pytest tests/test_released_checkpoint.py` (the model built from the config matches the
+released weights), and `OPENH_DATA_ROOT=<data root> OPENH_TEST_FAMILIES=dvrk_hamlyn,my_lab pytest
+tests/test_prepared_data.py` (samples of prepared families have the expected shapes and ranges).
+
 ## Repository layout
 
 | Path | What |
@@ -264,6 +283,7 @@ forward dynamics, inverse dynamics and policy 0.4 / 0.2 / 0.4, set by `joint_mod
 | `tools/convert_checkpoint_to_dcp.py` | Released `.pt` weights → DCP checkpoint |
 | `tools/compute_action_normalizer.py` | Action normalization statistics for your own dataset |
 | `tools/download_openh_samples.py` | Download a few episodes per dataset for a local smoke test |
+| `tests/` | CPU tests; checks of the released weights and of prepared data |
 
 ## Reproducibility
 

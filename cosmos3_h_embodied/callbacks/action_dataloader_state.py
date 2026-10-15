@@ -38,7 +38,7 @@ def _flatten_ints(value: Any) -> list[int]:
 
 
 class ActionDataLoaderStateCallback(Callback):
-    """Per-rank dataloader state for :class:`~cosmos3_h_embodied.data.unified_dataset.UnifiedActionDataset`.
+    """Per-rank dataloader state for :class:`~cosmos3_h_embodied.data.unified_dataset.ActionUnifiedIterableDataset`.
 
     Each sample carries ``_action_worker_id``, ``_action_sample_index`` (samples produced by
     that worker so far) and ``_action_rng_state`` (the worker's global RNG state after

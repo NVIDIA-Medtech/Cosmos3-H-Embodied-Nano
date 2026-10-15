@@ -9,7 +9,7 @@ video, action MSE over the predicted (non-history) action rows.
 
 Example::
 
-    python -m cosmos3_h_embodied.scripts.eval \\
+    python -m cosmos3_h_embodied.scripts.eval --no-guardrails \\
         --checkpoint-path <dcp dir> --config-file cosmos3_h_embodied/configs/config.py \\
         --experiment openh_h16_task_prompt --dataset.dataset dvrk_hamlyn --dataset.num-samples 8 \\
         -o outputs/eval
@@ -114,8 +114,8 @@ def eval_action(args: EvalArgs) -> list[SampleOutputs]:
         all_outputs.extend(batch_outputs)
 
         # Every rank participates in FSDP generation, but metrics and sidecars
-        # are host-side reductions. Writing them from all eight ranks causes
-        # redundant LPIPS work and concurrent writes to the same MP4/JSON.
+        # are host-side reductions: write them from rank 0 only (no redundant LPIPS
+        # work, no concurrent writes to the same MP4/JSON).
         if args.compute_metrics and batch_outputs and is_rank0():
             sample_output = batch_outputs[0]
             if sample_output.status == "success":
@@ -131,7 +131,6 @@ def eval_action(args: EvalArgs) -> list[SampleOutputs]:
                 )
                 (sample_args.output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, sort_keys=True))
                 log.info(f"Metrics for {sample_args.name}: {metrics}")
-
 
     if setup.benchmark and is_rank0():
         benchmark_file = output_dir / "benchmark.json"

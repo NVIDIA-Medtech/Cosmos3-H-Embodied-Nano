@@ -241,9 +241,8 @@ def compute_sample_metrics(
         out.update(
             compute_video_metrics(gt_video_cthw, sample_dir / f"vision{vision_extension}", mode, full_metrics)
         )
-        # Dump the GT clip next to the prediction so downstream viewers
-        # can render
-        # pred-vs-GT side by side. Best-effort, mirroring the action dump below.
+        # Dump the GT clip next to the prediction so viewers can render pred vs GT side by side.
+        # Best-effort, as the action dump below.
         try:
             gt_path = sample_dir / "vision_gt.mp4"
             if not gt_path.exists():

@@ -68,7 +68,7 @@ import torchvision.transforms.functional as transforms_F
 import tyro
 from PIL import Image
 
-from cosmos3_h_embodied.data.action_normalization import load_action_stats
+from cosmos3_h_embodied.data.action_normalization import load_action_stats, normalize_action
 from cosmos3_h_embodied.data.domain_utils import get_domain_id
 from cosmos3_h_embodied.data.transforms import ActionTransformPipeline, remove_reflection_padding
 from cosmos_framework.utils import log
@@ -207,7 +207,7 @@ def build_policy_batch(
 
 
 class QuantileDenormalizer:
-    """Inverse of the training ``quantile`` normalization (``global`` q01/q99 stats)."""
+    """Training ``quantile`` normalization (``global`` q01/q99 stats) and its inverse."""
 
     def __init__(self, normalizer: str | Path) -> None:
         path = Path(normalizer)
@@ -215,8 +215,9 @@ class QuantileDenormalizer:
             path = NORMALIZERS_DIR / str(normalizer)
         stats = load_action_stats(str(path), stats_key="global")
         self.path = path
-        self.q01 = torch.as_tensor(stats["q01"], dtype=torch.float32)  # [D]
-        self.range = (torch.as_tensor(stats["q99"], dtype=torch.float32) - self.q01).clamp(min=1e-8)  # [D]
+        self.stats = {k: torch.as_tensor(v, dtype=torch.float32) for k, v in stats.items()}
+        self.q01 = self.stats["q01"]  # [D]
+        self.range = (self.stats["q99"] - self.q01).clamp(min=1e-8)  # [D]
 
     @property
     def dim(self) -> int:
@@ -226,7 +227,9 @@ class QuantileDenormalizer:
         return (action + 1.0) / 2.0 * self.range.to(action.device) + self.q01.to(action.device)  # [...,D]
 
     def normalize(self, action: torch.Tensor) -> torch.Tensor:
-        return 2.0 * (action - self.q01.to(action.device)) / self.range.to(action.device) - 1.0  # [...,D]
+        """As in training, including the clip to ``[-NORM_CLIP, NORM_CLIP]`` (e.g. for ``history_action``)."""
+        stats = {k: v.to(action.device) for k, v in self.stats.items()}
+        return normalize_action(action, "quantile", stats)  # [...,D]
 
 
 # ---------------------------------------------------------------------------

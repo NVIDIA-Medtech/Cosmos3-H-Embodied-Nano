@@ -255,13 +255,14 @@ openh_h16_task_prompt_reference = _experiment(
     caption_prefix_mode="legacy",
     lr_schedule="as_trained",
 )
-# Smoke test on a few families with one GPU: per-sample family mixing (fewer ranks than
-# families), a window cap, and few workers. Combine with COSMOS_SMOKE=1 (2-layer model).
+# Smoke test with one GPU on two families whose roots need only the v2.1 -> v3.0 conversion
+# (e.g. samples from tools/download_openh_samples.py): per-sample family mixing (fewer ranks
+# than families), a window cap, and few workers. Combine with COSMOS_SMOKE=1 (2-layer model).
 openh_h16_task_prompt_smoke = _experiment(
     "openh_h16_task_prompt_smoke",
     include_nonpublic=False,
     caption_prefix_mode="fixed",
-    families=["cmr_clinical", "dvrk_obuda", "dvrk_ucsd", "turin_mitic", "dvrk_smarts"],
+    families=["dvrk_obuda", "dvrk_ucsd"],
     shard_across_workers=False,
     num_workers=2,
     prefetch_factor=2,

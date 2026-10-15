@@ -3,7 +3,7 @@
 
 # Installs the ``cosmos3_h_embodied`` package (Open-H surgical training and inference on
 # cosmos-framework). Install cosmos-framework first (validated at revision 7cfaf78, see
-# README.md), then: ``pip install -e .`` in the same environment.
+# README.md), then, with its environment activated: ``uv pip install -e .``.
 
 [build-system]
 requires = ["hatchling"]
@@ -26,3 +26,7 @@ packages = ["cosmos3_h_embodied"]
 
 [tool.hatch.build.targets.sdist]
 include = ["cosmos3_h_embodied", "tools", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning"]
