@@ -32,7 +32,9 @@ One model handles three tasks on 2.4 s clips (25 frames and 24 actions at 10 Hz,
   clean conditioning. At episode boundaries the history is shorter.
 - **Text.** The task instruction, prefixed with a short description of the robot and setting for each dataset.
 - **Training.** 50,000 iterations on 15 dataset families (55 dataset roots; 11 families are on Hugging Face), with
-  the three modes mixed 0.4 / 0.2 / 0.4, on 32 GPUs.
+  the three modes mixed 0.4 / 0.2 / 0.4, on 32 GPUs. The last 3,063 iterations used the H16 recipe in this
+  repository; the earlier ones an Open-H recipe without action history (see
+  [training history](cosmos3_h_embodied/training_differences.md#0-training-history-of-the-released-checkpoint)).
 
 Released weights: [`nvidia/Cosmos3-H-Embodied-Nano`](https://huggingface.co/nvidia/Cosmos3-H-Embodied-Nano) on Hugging Face,
 file `model_bf16.pt` (the network weights in bf16).

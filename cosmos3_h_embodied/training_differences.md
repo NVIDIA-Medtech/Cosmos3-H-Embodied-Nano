@@ -7,7 +7,34 @@ in [`design_and_decisions_log.md`](../design_and_decisions_log.md).
 
 In short: for the public part of the data, this repository reproduces the training inputs exactly (with one
 approximately re-encoded dataset) and the training computation up to floating-point precision. What cannot be
-reproduced is the non-public part of the mixture, and the run's exact state (optimizer state, world size).
+reproduced is the non-public part of the mixture, the run's exact state (optimizer state, world size), and the
+earlier training stage the run continued from (section 0).
+
+## 0. Training history of the released checkpoint
+
+The released checkpoint is iteration 50,000 of a run that was not trained with one recipe from the start:
+
+| Iterations | Recipe |
+|---|---|
+| 0 → 46,937 | An earlier Open-H post-training stage of Cosmos3-Nano (neither its checkpoint nor its recipe is released). |
+| 46,937 → 50,000 | The H16 task-prompt recipe that this repository implements (`openh_h16_task_prompt_reference`), 3,063 updates. |
+
+The 3,063 updates ran in three restarts that resumed the full training state (model, EMA, optimizer, scheduler,
+random number generators, dataloader positions); all three used the same configuration. The internal code changed
+between them only in the job orchestration (how a job stops at the end of its time allocation and verifies the
+restored state), not in data, model or optimization.
+
+The final configuration of the earlier stage differs from this recipe in, among others:
+
+- no action history (H0), and a different packing dataloader;
+- idle-frame counts derived from the clip's future appended to the captions (`append_idle_frames: true`). The H16
+  stage removed them; the checkpoint's earlier exposure to them is not undone;
+- Hamlyn and UCSD poses read with the wrong quaternion order (XYZW instead of WXYZ), with action statistics computed
+  accordingly;
+- the Stanford peg-transfer data before the row-index repair, with older Stanford action statistics.
+
+Fine-tuning with this repository therefore continues the released checkpoint with the recipe of its last 3,063
+updates; it does not reproduce how the checkpoint was obtained from Cosmos3-Nano.
 
 ## 1. Data that is not public
 
@@ -56,14 +83,20 @@ Compared with the training copies:
 |---|---|---|
 | Caption prefix | Selected through a lookup bug: all `dvrk_jhu` samples got the wound-closure description, all `cmr_clinical` samples the cholecystectomy description, and the TUD root the USTC description. | Per-root descriptions by default (`caption_prefix_mode: fixed`); `legacy` reproduces the training run's prefixes (used by the reference experiment). |
 | Family mixing | Rank-based on 32 GPUs: each rank serves one family, ranks allocated by ratio. The effective mixture depends on the number of ranks. | Same, plus per-sample mixing (`shard_across_workers: false`) for fewer ranks than families. On a different number of ranks the effective mixture differs. |
-| Starting point | The H16 training started from an earlier Open-H post-training stage of Cosmos3-Nano (neither the checkpoint nor its recipe is released). | Fine-tuning starts from the released H16 checkpoint. |
+| Starting point | The H16 recipe continued an earlier training stage at iteration 46,937 (section 0). | Fine-tuning starts from the released H16 checkpoint. |
 | Optimizer and schedule | Optimizer and LR-scheduler state carried through the run; the LR ended at 1e-5. | The released checkpoint has no optimizer state: a fine-tuning run starts a new optimizer. Default schedule: constant 1e-5 after 100 warm-up steps; the reference experiment restarts the original schedule. |
 | Released weights | The run kept EMA weights alongside the network weights. | The released file holds the regular network weights (bf16 in the run, exported losslessly). |
+| Job orchestration | Internal launcher: stopped each job at the end of its time allocation through the trainer's normal exit (saving the full state), audited captions, restored state and optimizer counters, and saved a checkpoint on a Slurm termination signal. | Not included (scheduler-specific). Checkpoints every 100 iterations; restarting the training command resumes the full state. |
+| Monitoring callbacks | Timing, dataloading-speed and logging callbacks; VAE encoder compiled with `torch.compile` after 3 iterations (`compile_tokenizer`). | cosmos-framework's monitoring callbacks; VAE encoder not compiled (cosmos-framework's default). Speed only. |
 
 ## 4. Numerical differences
 
 cosmos-framework differs from the internal training code in a few precision choices. None changes what is computed.
 
+- Parameters: the training code stored the network weights in bf16, with an fp32 copy inside the optimizer that
+  was not checkpointed (rebuilt from the bf16 weights at each restart); gradients reached the optimizer in bf16
+  after an fp32 reduction. cosmos-framework keeps fp32 weights (cast to bf16 for computation), passes fp32 gradients
+  to the optimizer, and checkpoints the fp32 weights.
 - Clean action targets stay in fp32 for the flow interpolation (the training code cast them to bf16 first).
 - At inference, the conditioning video is normalized in fp32 (the training code: bf16; at most one bf16 step apart).
 - Kernels differ (attention backend, grouped matrix products for the action projections), so results agree to

@@ -222,6 +222,7 @@ def _experiment(
                 callbacks=dict(
                     action_dataloader_state=L(ActionDataLoaderStateCallback)(),
                     grad_clip=dict(clip_norm=1.0, force_finite=True),
+                    manual_gc=dict(every_n=200),
                     skip_nan_step=dict(max_consecutive_nan=100),
                     training_stats=dict(log_freq=10),
                 ),
