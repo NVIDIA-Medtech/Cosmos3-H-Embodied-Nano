@@ -30,6 +30,7 @@ import pydantic
 import torch
 import tyro
 
+from cosmos3_h_embodied.configs.experiment_h16 import EVAL_DATASET_OVERRIDES
 from cosmos3_h_embodied.scripts.eval_utils import (
     aggregate_metrics,
     compute_sample_metrics,
@@ -78,6 +79,13 @@ def eval_action(args: EvalArgs) -> list[SampleOutputs]:
     if args.dataset.model_mode == "vision":
         raise ValueError("eval_action requires an action mode; got dataset.model_mode='vision'")
 
+    if not getattr(args.setup, "cfgp_size", 1):
+        # CFG parallelism (cosmos-framework's default with >= 2 ranks) gives a wrong unconditional
+        # velocity for this model: guided action predictions degrade. Run both CFG branches on
+        # every rank unless --cfgp-size is set explicitly.
+        args.setup.cfgp_size = 1
+    if args.dataset.dataset_split in ("val", "full"):
+        args.setup.experiment_overrides = [*args.setup.experiment_overrides, *EVAL_DATASET_OVERRIDES]
     setup = args.setup.build_setup()
     init_output_dir(setup.output_dir)
     log.debug(f"{args.__class__.__name__}({args})")

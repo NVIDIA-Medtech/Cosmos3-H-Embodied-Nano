@@ -24,6 +24,8 @@ Terminology:
 | 2026-10-13 | Recipe as a Hydra experiment registered by `cosmos3_h_embodied/configs/config.py` (CF's `make_config` + this package's experiments). CF's own tools take it as `--config-file` (`export_config`, then `_train --config-file <exported yaml>`); no CF patch, no copied entry point. Model config = CF's `NANO_MODEL_CONFIG` plus the recipe delta (fork Nano config → fork H16 config). | An (internal) test exports the reference experiment and diffs it against the fork's resolved training config; every remaining difference is on an explicit allowlist (moved keys, inert CF-only defaults, documented divergences). |
 | 2026-10-13 | `fsdp_reduce_dtype: float32` and `cpu_offloading_activations: false` set explicitly. | The fork reduced gradients in fp32; CF's default for this config reduces in bf16. Found by the config diff. |
 | 2026-10-13 | Released checkpoint → training: `tools/convert_checkpoint_to_dcp.py` writes the `.pt` network weights as a DCP `model` component (`net.*` and `net_ema.*`, original dtype; DCP casts to fp32 on load). CF's checkpointer does not load `.pt` files. | Verified: the model built from the public config has exactly the checkpoint's 809 tensors (names and shapes). |
+| 2026-10-14 | Evaluation and the policy server run classifier-free guidance without CFG parallelism (`cfgp_size=1` unless set explicitly). With CF's default (`cfgp_size=2` from two ranks on), the unconditional velocity received from the peer rank differs by about 6% on the action rows from the same branch computed locally, so guided (g=6) action and video predictions degrade (one family: inverse-dynamics action MSE 0.09 vs 0.016). With `cfgp_size=1` the port matches the fork. Parallelism only; no change in semantics. To be reported to cosmos-framework. | Silent quality loss in the default multi-GPU eval. |
+| 2026-10-14 | Evaluation on the `val`/`full` split disables the training-time video augmentation (`EVAL_DATASET_OVERRIDES`: `video_augment=null`, no CUDA augmentation routing), as the fork's eval does. CF's dataset loading for these splits disables only caption dropout, so the eval read the training dataloader config with rotation/crop/colour jitter still on: the model was conditioned on augmented frames and generated video was scored against clean ground truth (inverse-dynamics action MSE 1.3–3× the fork's in every family, forward-dynamics PSNR up to 1.7 dB lower). The policy server never augmented. | Eval must condition on and score clean holdout frames. |
 
 ## 2. Scope
 
@@ -36,6 +38,7 @@ Terminology:
 | 2026-10-14 | Default LR schedule of the public experiments: constant 1e-5 after a 100-step warm-up (the rate the released checkpoint's training ended at, factor 0.05 of lr 2e-4). The reference experiment keeps the schedule as trained (warm-up, then linear 8e-5 → 1e-5 over 50,000 iterations). |
 | 2026-10-14 | Release checkpoint format: bf16 network weights (an fp32 export exists). Training from it is unaffected: DCP casts bf16 exactly into the fp32 FSDP master weights; action targets stay fp32 (CF). |
 | 2026-10-14 | Experiments: `openh_h16_task_prompt` (HF-only, 11 families), `openh_h16_task_prompt_reference` (55 training roots, 15 families, legacy captions, LR as trained), `openh_h16_task_prompt_smoke` (5 families, per-sample mixing, window cap; one GPU with `COSMOS_SMOKE=1`). |
+| 2026-10-14 | **Correction.** The bf16 export used for the earlier local checkpoint-compatibility and inference-parity checks was the H16 50k checkpoint of the *generic-prompt* continuation (every family captioned "Continue the ongoing surgical task."), not the task-prompt one. Identified by comparing its tensors with both training runs' checkpoints. Both have the same architecture and 809 tensors; they differ in the generation-pathway weights. All validation below uses the task-prompt 50k checkpoint (network weights `net.*`, all bf16 in the source). |
 
 ## 3. Divergences from the fork (behavioural)
 
@@ -62,6 +65,8 @@ Each divergence is either a **default change** with a setting that restores the 
 | 2026-10-14 | Training `info.json` of all 55 roots compared with the local HF rebuilds: features (names, dtypes, shapes) are equal for every public root, except the non-public CMR `instruction.text_with_state` and wound-closure clean-twin videos. ARCADE and wound closure keep their string tool columns in training (no drop). Turin roots after VC have no `splits` in training (VC removes them; the rebuild does the same). |
 | 2026-10-14 | Exclusion list verified against what training applied: per root, the union of the `meta/exclude_episodes.json` sidecar and the overlay entry with the exact root path equals the shipped list (302 episodes, 7 roots). |
 | 2026-10-14 | Recipe roots mirror the HF layout below `Surgical/` (fix: SMARTS is `jhu/lcsr/smarts/...`). |
+| 2026-10-14 | Timestamps: the converter writes rewritten (formerly absolute) timestamps as float64, as the training data stores them (CAO cautery, SRT-H; the HF float32 values were rounded to float32 `frame_index / fps` before, an ulp-level difference). `repair_timestamps.py --allow-relative` recomputes the timestamp statistics when C already relativized the data (CAO chain, as in training). With both fixes the two roots equal the training data exactly. |
+| 2026-10-14 | Exclusion overlay: relative keys also match the root path as given (not only the symlink-resolved path), so a data directory made of symlinks gets its exclusions. Absolute keys still match the resolved path. |
 
 ## 5. Removed internal tooling (non-behavioural)
 
@@ -85,6 +90,10 @@ Each divergence is either a **default change** with a setting that restores the 
   few percent per sample. Treated as a residual numerical difference; aggregate eval metrics on a larger sample set are the
   acceptance check. Eval semantics: CF names the policy mode `wam`; dataset batches carry no negative prompt in either
   code base (unconditional branch = empty caption).
+  **Resolved 2026-10-14** (§7, D3): the aggregate check first showed two port-side eval defects, both fixed (§1): CFG
+  parallelism and training-time video augmentation left on in the eval. After the fixes, the action velocity of the first
+  sampling step agrees to 0.4–0.5% relative; the remaining input difference is the conditioning video, which the fork
+  normalizes in bf16 and the port in fp32 (at most one bf16 step).
 - ~~**LR schedule when continuing from the released checkpoint (2026-10-13, open).**~~ **Resolved 2026-10-14**, see §2. The recipe copies the fork's
   scheduler (LambdaLinear, warm-up 100, cycle 50,000, f_max 0.4, f_min 0.05). The fork continued with its optimizer
   and scheduler state from iteration 47,437 (LR ≈ 1.4e-5 falling to 1e-5); the released checkpoint has no optimizer
@@ -109,10 +118,16 @@ Each divergence is either a **default change** with a setting that restores the 
   which also checks that no frames are lost. The fork's first AV1 → H.264 pass is documented to have dropped frames
   on CAO and SRT-H (videos shorter than the kinematics; episode tails unusable); if the training copies still show
   this, the rebuilt roots have more usable windows than training had. To be checked on the cluster (frame counts).
+  **Resolved 2026-10-14:** the training copies are complete. For every episode of every re-encoded training root
+  (CAO, SRT-H, ARCADE, rob_surgical, Turin ×4, TUD) and every camera, the video window holds `length` frames and
+  the last frame is present; no divergence. Rebuilt with ffmpeg 6.1.1 (libx264 of Ubuntu 24.04), E reproduces the
+  training videos bit-exactly (decoded frames identical on CAO, SRT-H, ARCADE, rob_surgical, TUD); DS (Turin)
+  gives 39–41 dB PSNR against the training videos.
 - **Undocumented in-place fixes** (Stanford, Hamlyn, UC Berkeley, rob_surgical column changes, authored `modality.json`
   files) had no committed scripts in the fork. Re-implemented 2026-10-14 (§4); with them every local HF sample root of
   these families loads and gives samples identical to the fork's dataset code. Value-level comparison with the fork's
-  data is pending (cluster).
+  data is pending (cluster). **Done 2026-10-14** (§7): every data column of every rebuilt public root equals the
+  training data.
 - ~~Whether `COSMOS_COARSE_DROPOUT` was enabled in the H16 run.~~ **Resolved 2026-10-13:** not set by the launcher or
   the job environment file; loader defaults applied (coarse dropout off, camera-overlap max 0.25, no window cap). The
   port's defaults are the same. (An inherited shell variable cannot be excluded from the launch records alone.)
@@ -128,3 +143,33 @@ Each divergence is either a **default change** with a setting that restores the 
   `openh_h16_task_prompt_reference` (all 55 training roots, legacy captions, needs the internal data; used for
   equivalence runs). Fixed captions: USTC `tissue_lifting` uses the USTC context (the fork resolved it to the JHU
   tissue-lift context by path substring; legacy mode never used that entry because of the worker-local lookup).
+
+## 7. Validation results (2026-10-14)
+
+Equivalence of the port with the fork that trained the released checkpoint, run on the internal cluster on the training
+data. Same checkpoint on both sides (the released task-prompt checkpoint, iteration 50,000).
+
+- **Sample parity (B).** Port and fork datasets return identical samples for every family of the mixture (video,
+  actions with history, captions, sequence plans): 114 checks pass, none skipped.
+- **Data preparation (C).** All 42 public roots rebuilt from the HF dataset with `tools/data_prep`. Every data column
+  equals the training copy; decoded frames are bit-exact everywhere, including the re-encoded roots (CAO, SRT-H, ARCADE,
+  rob_surgical, TUD), except Turin (downscaled, 39–41 dB PSNR). Differences are confined to inputs that were never
+  published (CMR per-frame instruction texts, wound-closure clean twins) and to episode statistics the loaders do not
+  read. The CMR valid-window index rebuilt from HF equals the training index. Port datasets on the rebuilt roots return
+  the same samples as fork datasets on the training roots (16 samples per family; exact except Turin video, ~40 dB, and
+  the non-public CMR captions and wound-closure video), with equal dataset lengths.
+- **Frame counts (A7).** Every episode of every training root has complete video for its kinematics window; the
+  re-encoded training copies lost no frames.
+- **One training step (D1).** Same packed batches, weights, noise levels and noise: total loss agrees to 0.076% mean
+  relative difference over 16 micro-batches.
+- **Training continuation (D2).** 16 ranks from the released checkpoint: loss over the first 20 iterations 0.743 (fork
+  0.746). A run stopped at iteration 132 and resumed from the iteration-100 checkpoint resumes every dataloader worker at
+  the next sample; overlapping samples are identical.
+- **Policy server (D4).** Same request (16 history actions, no guidance) to the fork's and the port's server: actions agree
+  to 0.36% relative RMS (max abs 0.014).
+- **Dataset evaluation (D3).** 14 families × 64 validation samples × 3 modes (forward dynamics, inverse dynamics,
+  policy), guidance 6, 35 steps, same seed (rob_surgical has no validation samples on either side). Paired per sample:
+  all 28 action-MSE cells within 3 standard errors (relative difference median +0.2%, range −2.9% to +7.7%;
+  inverse dynamics within 2%). PSNR: 22 of 28 cells within 3 SE; the port is lower by a median of 0.02 dB (range −0.08 to
+  +0.02 dB). The remaining PSNR offset is small but consistent in sign and is attributed to the fp32/bf16 precision
+  differences above (not verified separately).

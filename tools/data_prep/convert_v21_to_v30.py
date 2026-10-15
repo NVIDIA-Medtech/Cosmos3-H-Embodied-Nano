@@ -14,7 +14,8 @@ checkpoint:
   identical to the source;
 * ``info.json`` conversion tolerates missing ``total_chunks`` / ``total_videos``;
 * parquet timestamps stored as absolute wall-clock time are rewritten to episode-relative
-  ``frame_index / fps`` (the LeRobot v3.0 convention);
+  ``frame_index / fps`` (the LeRobot v3.0 convention), as float64 like the training data;
+  the per-episode timestamp statistics are left as converted (see ``repair_timestamps.py``);
 * ``meta/modality.json``, ``meta/episodes.*_vlm_qwen3.jsonl`` and ``meta/annotations.jsonl``
   are carried over (the lerobot converter drops them).
 
@@ -138,7 +139,9 @@ def relativize_absolute_timestamps(dst: Path) -> int:
         if min(table.column("timestamp").to_pylist()) < ABSOLUTE_TIMESTAMP_MIN:
             continue
         frame_index = table.column("frame_index").to_numpy()
-        timestamps = pa.array(frame_index / fps, type=table.schema.field("timestamp").type)
+        # float64, as in the training data (the absolute float32 source values carry no
+        # sub-second precision, and float32 would round frame_index / fps).
+        timestamps = pa.array(frame_index / fps, type=pa.float64())
         table = table.set_column(table.column_names.index("timestamp"), "timestamp", timestamps)
         pq.write_table(table, path)
         n_fixed += 1
