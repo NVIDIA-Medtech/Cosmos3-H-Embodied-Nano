@@ -25,11 +25,11 @@ One model handles three tasks on 2.4 s clips (25 frames and 24 actions at 10 Hz,
 
 - **Actions.** Per arm and step: the end-effector pose relative to the current pose (translation as a world-frame
   offset, rotation in the current pose's frame as a 6D representation) and the gripper command, 20 values for a
-  two-arm robot. Each dataset family is normalized
-  with its own statistics (1st/99th percentiles to [-1, 1]); an embodiment ID selects the action input and output
-  projections.
-- **Action history.** Up to 16 past action steps, expressed in the current pose's frame, are given to the model as
-  clean conditioning. At episode boundaries the history is shorter.
+  two-arm robot, zero-padded to 64. Each dataset family is normalized with its own statistics (1st/99th percentiles
+  to [-1, 1]); an embodiment ID selects the action input and output projections. See
+  [`cosmos3_h_embodied/README_ACTION_SPACE.md`](cosmos3_h_embodied/README_ACTION_SPACE.md) for the full action space design.
+- **Action history.** Up to 16 past action steps, relative to the current pose like the future ones, are given to
+  the model as clean conditioning. At episode boundaries the history is shorter.
 - **Text.** The task instruction, prefixed with a short description of the robot and setting for each dataset.
 - **Training.** 50,000 iterations on 15 dataset families (55 dataset roots; 11 families are on Hugging Face), with
   the three modes mixed 0.4 / 0.2 / 0.4, on 32 GPUs. The last 3,063 iterations used the H16 recipe in this
@@ -271,6 +271,7 @@ tests/test_prepared_data.py` (samples of prepared families have the expected sha
 
 | Path | What |
 |---|---|
+| `cosmos3_h_embodied/README_ACTION_SPACE.md` | Action space: per-embodiment layout, normalization, padding, data mixture |
 | `cosmos3_h_embodied/data/` | Open-H datasets (generalized dVRK, CMR clinical), H16 history, normalization, transforms, family mixing, history-matched sequence packing |
 | `cosmos3_h_embodied/data/normalizers/` | Action normalization statistics of the released checkpoint (15 families) |
 | `cosmos3_h_embodied/data/exclusions/` | Episodes excluded from training (302), keyed by dataset path |
