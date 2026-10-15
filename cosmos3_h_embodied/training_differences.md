@@ -43,6 +43,10 @@ Compared with the training copies:
   ffmpeg 6.1.1 (Ubuntu 24.04 packages), `reencode_videos.py` reproduces them frame-exactly. Other ffmpeg/x264 builds
   may give codec-noise-level differences.
 - **Turin (4 roots)** was downscaled to 854x480 for training. The rebuild matches it to 39–41 dB PSNR, not exactly.
+- **Action statistics** (`data/normalizers/`) are shipped as the training run used them.
+  `tools/compute_action_normalizer.py` reproduces the most recent ones (Hamlyn, UCSD) exactly. The others were
+  computed earlier with a simpler procedure on an earlier state of the data; recomputed, their 1st/99th percentiles
+  differ by up to ~30% on some dimensions.
 - **Episode statistics** in `meta/` (not read by the loaders) differ for a few roots: some training copies carry stale
   statistics from before a repair.
 

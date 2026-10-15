@@ -274,3 +274,19 @@ for _name, _node in (
     ("openh_h16_task_prompt_smoke", openh_h16_task_prompt_smoke),
 ):
     cs.store(group="experiment", package="_global_", name=_name, node=_node)
+
+
+def register_experiment(
+    name: str, *, include_nonpublic: bool = False, caption_prefix_mode: str = "fixed", **kwargs
+) -> LazyDict:
+    """Build an experiment like ``openh_h16_task_prompt`` with changes, and register it as ``name``.
+
+    ``kwargs``: ``lr_schedule`` (a key of ``LR_SCHEDULES``), the options of :func:`h16_dataloader`
+    (``families``, ``shard_across_workers``, ``num_workers``, ...), and dataset options applied to
+    every family (e.g. ``mode="forward_dynamics"``, ``joint_mode_weights``, ``max_windows``). Example::
+
+        register_experiment("my_fd", families=["my_family"], shard_across_workers=False, mode="forward_dynamics")
+    """
+    node = _experiment(name, include_nonpublic=include_nonpublic, caption_prefix_mode=caption_prefix_mode, **kwargs)
+    cs.store(group="experiment", package="_global_", name=name, node=node)
+    return node

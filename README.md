@@ -119,6 +119,7 @@ set `shard_across_workers=false` on the dataset (per-sample mixing: each dataloa
 ### 3. Train
 
 ```bash
+export IMAGINAIRE_OUTPUT_ROOT=<checkpoint directory>   # default: /tmp/imaginaire4-output
 python -m cosmos_framework.scripts.export_config -o h16.yaml \
     --config-file cosmos3_h_embodied/configs/config.py --experiment openh_h16_task_prompt
 torchrun --nproc_per_node=8 --nnodes=<N> ... -m cosmos_framework.scripts._train \
@@ -127,8 +128,10 @@ torchrun --nproc_per_node=8 --nnodes=<N> ... -m cosmos_framework.scripts._train 
 ```
 
 The recipe was trained on 32 GPUs (FSDP, 2-step gradient accumulation, 5,040 tokens per packed sequence).
-Resuming is automatic from `outputs/.../checkpoints`; the action dataloader position and RNG state are restored per
-worker.
+Checkpoints (model, EMA and optimizer state, several times the size of the released weights) are written to
+`$IMAGINAIRE_OUTPUT_ROOT/cosmos3_h_embodied/openh_h16/<experiment>/checkpoints/iter_<N>/`; `-o outputs` holds the logs
+and a `job` link to that directory. Restarting the same command resumes from the latest checkpoint, with the action
+dataloader position and RNG state restored per worker.
 
 Smoke test on one GPU with a 2-layer model, on a few episodes per dataset from `tools/download_openh_samples.py`:
 
@@ -142,9 +145,12 @@ COSMOS_SMOKE=1 torchrun --nproc_per_node=1 -m cosmos_framework.scripts._train --
 ## Fine-tune on your own data
 
 Data from a bimanual (or single-arm) surgical robot with Cartesian end-effector kinematics fits the
-`GeneralizedDvrkHistoryDataset` loader. What a new dataset needs:
+`GeneralizedDvrkHistoryDataset` loader. Prepare it once, then fine-tune for the mode you need.
 
-1. **LeRobot v3.0 format**, one root per task; the loaders sample clips at 10 Hz. The state holds each arm's measured
+### Prepare your dataset
+
+1. **LeRobot v3.0 format**, one root per task, below `OPENH_DATA_ROOT` (for example
+   `$OPENH_DATA_ROOT/my_lab/task_a`); the loaders sample clips at 10 Hz. The state holds each arm's measured
    end-effector pose, the action each arm's gripper command (and, with `pose_source="action"`, the commanded pose).
 2. **`meta/modality.json`** that names the columns per arm, in both the `state` and the `action` block:
    `<arm>_pose` (7 columns: position + quaternion, set `quaternion_order` to `xyzw` or `wxyz`; or 6 columns:
@@ -152,18 +158,93 @@ Data from a bimanual (or single-arm) surgical robot with Cartesian end-effector 
    `tools/data_prep/modality/hamlyn/peg_transfer/modality.json` for an example.
 3. **An embodiment.** The model has 32 embodiment slots for its action projections, all of them assigned
    (`EMBODIMENT_TO_DOMAIN_ID` in `cosmos3_h_embodied/data/domain_utils.py`). Reuse the embodiment of the most similar
-   robot: for example, `hamlyn` or `dvrk_obuda` for a dVRK with two patient-side manipulators. Its robot description
-   (`EMBODIMENT_CAPTION_CONTEXT` in the same file) is prepended to the captions; add an entry for a new description.
-4. **Action statistics**, a JSON file under `cosmos3_h_embodied/data/normalizers/` with a `global` block of
-   per-dimension `q01` and `q99` (and `mean`, `std`, `min`, `max`) of the relative actions over the training windows.
-   The shipped files show the format; their `metadata` blocks record how they were computed.
-5. **A family in the mixture.** Add a `Family` to `FAMILIES` in `cosmos3_h_embodied/configs/openh_datasets.py`
-   (roots relative to `OPENH_DATA_ROOT`, the normalizer file, the video key, `embodiment_type`, a sampling ratio), and
-   select it with an experiment's `families=[...]`. With fewer GPU ranks than families, set
-   `shard_across_workers=False`.
+   robot: for example, `hamlyn` or `dvrk_obuda` for a dVRK with two patient-side manipulators. Captions are
+   prefixed with a robot and setting description; add one for your data to `EMBODIMENT_CAPTION_CONTEXT` in the same
+   file (key `my_lab` below).
+4. **A dataset family.** Append it to `FAMILIES` in `cosmos3_h_embodied/configs/openh_datasets.py`:
 
-Then train from the released checkpoint as above. The `continue` learning-rate schedule (constant 1e-5) is the rate
-the released checkpoint finished its training at.
+   ```python
+   Family(
+       "my_lab",
+       1.0,  # sampling ratio relative to the other families of an experiment
+       GeneralizedDvrkHistoryDataset,
+       (Root("my_lab/task_a", "my_lab"), Root("my_lab/task_b", "my_lab")),  # path, caption key
+       _dvrk(
+           "hamlyn",  # embodiment
+           "my_lab_backward_anchored_worldtrans_rot6d.json",  # action statistics (next step)
+           "observation.images.left",
+           quaternion_order="wxyz",
+       ),
+   ),
+   ```
+
+5. **Action statistics** of the family with
+   [`tools/compute_action_normalizer.py`](tools/compute_action_normalizer.py), written to the family's normalizer
+   file under `cosmos3_h_embodied/data/normalizers/` (the procedure of the released checkpoint's most recent
+   statistics files, which it reproduces exactly):
+
+   ```bash
+   python tools/compute_action_normalizer.py --family my_lab
+   ```
+
+Each tutorial below registers an experiment, trains from the released checkpoint (`<ckpt_dcp>`, see
+[Install](#install)), and uses the result. Experiments are registered at the end of
+`cosmos3_h_embodied/configs/experiment_h16.py` with `register_experiment`, which builds them like
+`openh_h16_task_prompt` (the `continue` learning rate: constant 1e-5, the rate the released checkpoint finished its
+training at). `shard_across_workers=False` mixes families per sample, needed when there are fewer GPU ranks than
+families. Checkpoints are written to `$IMAGINAIRE_OUTPUT_ROOT/cosmos3_h_embodied/openh_h16/<experiment>/checkpoints/`
+(see [Train](#3-train)).
+
+### Tutorial: forward dynamics (world model)
+
+Train the model to predict video from the first frame and an action sequence:
+
+```python
+register_experiment("my_lab_fd", families=["my_lab"], shard_across_workers=False, mode="forward_dynamics")
+```
+
+```bash
+python -m cosmos_framework.scripts.export_config -o my_lab_fd.yaml \
+    --config-file cosmos3_h_embodied/configs/config.py --experiment my_lab_fd
+torchrun --nproc_per_node=8 -m cosmos_framework.scripts._train --config-file my_lab_fd.yaml -o outputs \
+    --config-overrides checkpoint.load_path=<ckpt_dcp> model.config.parallelism.data_parallel_shard_degree=8
+```
+
+Score the predicted video on held-out episodes (PSNR against the recorded video):
+
+```bash
+python -m cosmos3_h_embodied.scripts.eval --no-guardrails \
+    --checkpoint-path $IMAGINAIRE_OUTPUT_ROOT/cosmos3_h_embodied/openh_h16/my_lab_fd/checkpoints/iter_<N>/model \
+    --config-file cosmos3_h_embodied/configs/config.py --experiment my_lab_fd \
+    --dataset.dataset my_lab --dataset.model-mode forward_dynamics --dataset.dataset-split val \
+    --dataset.num-samples 32 --num-steps 35 --guidance 6.0 -o outputs/eval_my_lab_fd
+```
+
+### Tutorial: policy
+
+Train the model to predict the next 24 actions (and the video) from the current frame, the task text and the action
+history:
+
+```python
+register_experiment("my_lab_policy", families=["my_lab"], shard_across_workers=False, mode="policy")
+```
+
+Export the config and train as above with `my_lab_policy`. Then serve it:
+
+```bash
+python -m cosmos3_h_embodied.scripts.policy_server \
+    --checkpoint-path $IMAGINAIRE_OUTPUT_ROOT/cosmos3_h_embodied/openh_h16/my_lab_policy/checkpoints/iter_<N>/model \
+    --config-file my_lab_policy.yaml \
+    --normalizer my_lab_backward_anchored_worldtrans_rot6d.json --domain-name hamlyn --port 8000
+```
+
+`--dataset.model-mode wam` in the eval command above scores the policy offline (action MSE). If your data labels
+failed episodes (`splits` in `meta/info.json`), the default joint training keeps them out of the policy mode; a
+policy-only run does not, so list them in the root's `meta/exclude_episodes.json` (a JSON list of episode indices).
+
+Training on a single mode specializes the model. To keep its other abilities, keep `mode="joint"` (the recipe mixes
+forward dynamics, inverse dynamics and policy 0.4 / 0.2 / 0.4, set by `joint_mode_weights`) or add Open-H families to
+`families`.
 
 ## Repository layout
 
@@ -179,6 +260,7 @@ the released checkpoint finished its training at.
 | `cosmos3_h_embodied/scripts/policy_server.py` | HTTP policy server with action history |
 | `tools/data_prep/` | Rebuild the training data from the Hugging Face dataset ([README](tools/data_prep/README.md)) |
 | `tools/convert_checkpoint_to_dcp.py` | Released `.pt` weights → DCP checkpoint |
+| `tools/compute_action_normalizer.py` | Action normalization statistics for your own dataset |
 | `tools/download_openh_samples.py` | Download a few episodes per dataset for a local smoke test |
 
 ## Reproducibility

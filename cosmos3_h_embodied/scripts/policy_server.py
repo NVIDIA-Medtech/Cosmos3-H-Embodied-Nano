@@ -14,7 +14,7 @@ Endpoints:
       {
         "image": "<base64 PNG, current endoscope frame>",
         "prompt": "<caption text, e.g. caption context + task, as in training>",
-        "domain_name": "<embodiment, e.g. dvrk_hamlyn>",        # optional, server default otherwise
+        "domain_name": "<embodiment, e.g. hamlyn>",        # optional, server default otherwise
         "image_size": <int>,                                  # optional, see below
         "history_action": [[...], ...],                       # optional, [nH, raw_dim], nH <= 16
         "guidance": <float>, "num_steps": <int>, "seed": <int>,  # optional overrides
