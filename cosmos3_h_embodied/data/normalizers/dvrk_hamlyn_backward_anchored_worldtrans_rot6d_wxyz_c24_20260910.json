@@ -321,7 +321,6 @@
       17,
       18
     ],
-    "source_sha": "09fdb9e764a13052f6ddd43f0c7562a4e2ce7d8b",
     "split": "train",
     "split_seed": 42,
     "split_val_ratio": 0.05
