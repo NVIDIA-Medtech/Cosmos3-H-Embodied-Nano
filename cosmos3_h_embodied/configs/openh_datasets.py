@@ -20,7 +20,8 @@ from cosmos3_h_embodied.data.history_dataset import CmrClinicalHistoryDataset, G
 from cosmos3_h_embodied.data.unified_dataset import dataset_entry
 from cosmos_framework.utils.lazy_config import LazyCall as L
 
-DATA_ROOT = "${oc.env:OPENH_DATA_ROOT}"
+# Unset (e.g. when only serving), dataset paths start with "OPENH_DATA_ROOT_not_set" and fail when read.
+DATA_ROOT = "${oc.env:OPENH_DATA_ROOT,OPENH_DATA_ROOT_not_set}"
 CMR_VALID_WINDOW_INDEX = f"{DATA_ROOT}/indices/cmr_valid_windows_c24_stride8_reject_any_v2.npz"
 # Default: the exclusion list shipped with this package (absolute, as training may change the working directory).
 _SHIPPED_EXCLUSIONS = Path(__file__).resolve().parents[1] / "data" / "exclusions" / "openh_h16_exclusions.json"
@@ -320,7 +321,7 @@ def build_dataset_entries(
         roots = [r for r in family.roots if include_nonpublic or r.public]
         if not roots:
             continue
-        kwargs = dict(COMMON_KWARGS, **family.kwargs, **dataset_overrides)
+        kwargs = {**COMMON_KWARGS, **family.kwargs, **dataset_overrides}
         kwargs["roots"] = [f"{DATA_ROOT}/{r.path}" for r in roots]
         kwargs["caption_prefix_mode"] = caption_prefix_mode
         if family.cls is GeneralizedDvrkHistoryDataset:

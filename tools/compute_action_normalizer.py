@@ -13,8 +13,9 @@ checkpoint's most recent statistics files:
    quaternion order), train split, without action history and without normalization.
 2. Draw ``20 x --num-samples`` candidate windows at random (``random.Random(seed).sample``), read their
    tabular data, and keep the first ``--num-samples`` windows whose actions and states are complete
-   (no padding at episode ends) and finite. Each window holds ``chunk_length`` (24) actions: per arm,
-   translation, 6D rotation and gripper, relative to the window's current pose.
+   (no padding at episode ends) and finite (all of them for a smaller dataset). Each window holds
+   ``chunk_length`` (24) actions: per arm, translation, 6D rotation and gripper, relative to the
+   window's current pose.
 3. Per action dimension, compute mean, std, min, max and the 1st/99th percentiles over all kept actions
    (``global_raw``).
 4. ``global`` is the same with the 6D-rotation dimensions set to the identity range (q01 = min = -1,
@@ -136,8 +137,10 @@ def collect(dataset, count: int, seed: int) -> tuple[np.ndarray, Counter, Counte
             print(f"  {len(chunks)}/{count}", flush=True)
         if len(chunks) == count:
             break
+    if not chunks:
+        raise SystemExit(f"no complete windows among {len(candidates)} candidates")
     if len(chunks) < count:
-        raise SystemExit(f"only {len(chunks)} complete windows among {len(candidates)} candidates (need {count})")
+        print(f"WARNING: only {len(chunks)} complete windows among {len(candidates)} candidates; using all of them")
     return np.concatenate(chunks).astype(np.float32), per_root, rejected
 
 
@@ -157,7 +160,7 @@ def main() -> None:
     rot_dims = rotation_dims(dataset._arm_specs)
     print(f"{family.name}: {len(dataset)} training windows, action dim {dataset.action_dim}, rotation dims {rot_dims}")
     actions, per_root, rejected = collect(dataset, args.num_samples, args.seed)
-    print(f"kept {args.num_samples} windows; rejected: {dict(rejected)}")
+    print(f"kept {len(actions) // dataset._chunk_length} windows; rejected: {dict(rejected)}")
 
     raw = compute_stats(actions)
     by_path = {f"{args.data_root.rstrip('/')}/{r}": r for r in roots}
@@ -177,11 +180,11 @@ def main() -> None:
             "split_val_ratio": COMMON_KWARGS["split_val_ratio"],
             "seed": args.seed,
             "dataset_roots": roots,
-            "num_chunks_sampled": args.num_samples,
+            "num_chunks_sampled": int(actions.shape[0]) // dataset._chunk_length,
             "num_steps_used": int(actions.shape[0]),
             "root_chunk_counts": {by_path.get(k, k): v for k, v in sorted(per_root.items())},
             "selection": "Uniform random candidate windows from the family's train split; the first "
-            f"{args.num_samples} with complete, finite actions and states. global: rotation dims set to the "
+            f"{args.num_samples} (or all) with complete, finite actions and states. global: rotation dims set to the "
             "identity range; global_raw: statistics of all dims.",
         },
         "global": identity_overlay(raw, rot_dims),

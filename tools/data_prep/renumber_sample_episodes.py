@@ -3,10 +3,9 @@
 
 """Copy a trimmed v2.1 sample root with its episodes renumbered 0..K-1 (test fixtures only).
 
-Sample roots made by ``tools/download_openh_samples.py`` keep a few episodes of an
-upstream root under their original IDs (e.g. 52 and 53). The v3.0 converter assigns
-episode indices by file order and rejects IDs that are not 0..K-1. This tool writes a
-copy with:
+A root trimmed to a few episodes of an upstream root keeps their original IDs (e.g. 52 and
+53). The v3.0 converter assigns episode indices by file order and rejects IDs that are not
+0..K-1. This tool (used by ``tools/download_openh_samples.py``) writes a copy with:
 
 * data parquet files renamed and their ``episode_index`` (and, if present, ``index``)
   columns rewritten (``index`` becomes contiguous over the kept episodes);

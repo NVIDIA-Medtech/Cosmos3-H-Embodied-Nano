@@ -708,6 +708,7 @@ class DvrkWoundClosureLeRobotDataset(BaseActionLeRobotDataset):
         # causes a jump.
         jump_rng = random.Random(idx)
         sample_dataset_idx: int | None = None
+        last_error: Exception | None = None
         while attempts < 256:
             # Fast path: skip known-bad before paying the parquet+video load.
             try:
@@ -737,6 +738,7 @@ class DvrkWoundClosureLeRobotDataset(BaseActionLeRobotDataset):
                 msg = str(e)
                 if "tolerance" not in msg:
                     raise
+                last_error = e
                 self._log_bad_sample(cur_idx, e)
                 attempts += 1
                 cur_idx = self._next_skip_index(cur_idx, len(self), jump_rng)
@@ -748,15 +750,20 @@ class DvrkWoundClosureLeRobotDataset(BaseActionLeRobotDataset):
                 # timeout across the whole job. The 256-attempt bound below still
                 # fails loudly if an entire shard is unreadable (not just sparse
                 # bad frames), so this can't silently mask a fully-broken dataset.
+                last_error = e
                 self._log_bad_sample(cur_idx, e)
                 attempts += 1
                 cur_idx = self._next_skip_index(cur_idx, len(self), jump_rng)
         else:
+            cause = f"Last error: {type(last_error).__name__}: {last_error}" if last_error is not None else "All were known-bad."
+            where = "Set DVRK_BAD_SAMPLES_LOG to log all."
+            if _BAD_SAMPLES_LOG:
+                where = f"All are logged to {_BAD_SAMPLES_LOG}."
             raise RuntimeError(
                 f"DvrkWoundClosureLeRobotDataset: 256 consecutive samples failed to "
                 f"load (tolerance violations or unreadable video) starting from "
-                f"idx={idx}. See {_BAD_SAMPLES_LOG}."
-            )
+                f"idx={idx}. {cause} {where}"
+            ) from last_error
 
         ai_caption = self._extract_caption(sample, sample_dataset_idx)
         # None when the latent cache is active (base skipped video decode); the

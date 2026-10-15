@@ -6,6 +6,12 @@ These scripts rebuild, from the public Hugging Face dataset
 Root paths below are relative to `Surgical/`. Run everything with the cosmos-framework Python environment, which
 pins the lerobot revision used to build the training data.
 
+Download the roots you need (here: all Hamlyn roots) with the Hugging Face CLI of that environment:
+
+```bash
+hf download nvidia/PhysicalAI-Robotics-Open-H-Embodiment --repo-type dataset --include "Surgical/hamlyn/*" --local-dir <hf>
+```
+
 ## Steps
 
 | Code | Step | Script |
@@ -21,7 +27,7 @@ pins the lerobot revision used to build the training data.
 | P | Rewrite `task_index` to row positions in `tasks.parquet` (LeRobot looks tasks up by position). In place, idempotent. | `smarts_fix_task_index_positional.py --root <parent of the leaves>` |
 | S1–S6 | SMARTS chain (see below). | `smarts_*.py` |
 | X | Episode exclusions: the overlay file given to the loaders (`exclude_episodes_overlay`), keyed by root path. This is not a data rewrite. | — |
-| W | CMR valid-window index (`.npz`) given to the CMR loaders (`valid_window_index_path`). The recipe expects it at `<data root>/indices/cmr_valid_windows_c24_stride8_reject_any_v2.npz`; build it over the CMR roots with the defaults (fps 10, chunk 24, stride 8, threshold 5000, `reject_any`) and `PYTHONPATH=<repository root>`. | `build_cmr_valid_window_index.py` |
+| W | CMR valid-window index (`.npz`) given to the CMR loaders (`valid_window_index_path`). The recipe expects it at `<data root>/indices/cmr_valid_windows_c24_stride8_reject_any_v2.npz`; build it over the CMR roots with the defaults (fps 10, chunk 24, stride 8, threshold 5000, `reject_any`). | `build_cmr_valid_window_index.py` |
 | E | Re-encode the training view to H.264 (`libx264 -preset fast -crf 20`, default GOP), in place, frame count checked. Settings from the training videos' x264 headers. | `reencode_videos.py --view <key>` |
 | DS | Downscale + re-encode: `--scale 854x480 --crf 18` (Lanczos). | `reencode_videos.py --view <key> --scale 854x480 --crf 18` |
 
@@ -171,5 +177,5 @@ The training run read the original 1920x1080 H.264 video (no re-encode).
 
 ## Local sample fixtures
 
-`renumber_sample_episodes.py` makes trimmed sample roots (from `tools/download_openh_samples.py`) contiguous before
-conversion. It is not part of the training-data rebuild.
+`renumber_sample_episodes.py` renumbers the episodes of a trimmed v2.1 root to 0..K-1, which the converter requires;
+`tools/download_openh_samples.py` applies it to its samples. It is not part of the training-data rebuild.
