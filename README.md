@@ -3,7 +3,9 @@
 **Cosmos3-H-Embodied-Nano** is [Cosmos3-Nano](https://huggingface.co/nvidia/Cosmos3-Nano) (16B) post-trained for
 surgical robotics on the [Open-H Embodiment dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-Open-H-Embodiment).
 One model predicts robot actions and endoscopic video for dVRK-style and other surgical robots, conditioned on a
-short **history of past actions** (up to 16, "H16").
+short **history of past actions** (up to 16, "H16"): it is a world model (forward dynamics), a policy and an
+inverse-dynamics model in one checkpoint. Its predecessor,
+[Cosmos-H-Surgical-Simulator](https://huggingface.co/nvidia/Cosmos-H-Surgical-Simulator), is a world model only.
 
 This repository contains everything needed to use and adapt it, built as a plugin package (`cosmos3_h_embodied`)
 on an unmodified [cosmos-framework](https://github.com/NVIDIA/cosmos-framework):
@@ -25,11 +27,11 @@ One model handles three tasks on 2.4 s clips (25 frames and 24 actions at 10 Hz,
 
 - **Actions.** Per arm and step: the end-effector pose relative to the current pose (translation as a world-frame
   offset, rotation in the current pose's frame as a 6D representation) and the gripper command, 20 values for a
-  two-arm robot. Each dataset family is normalized
-  with its own statistics (1st/99th percentiles to [-1, 1]); an embodiment ID selects the action input and output
-  projections.
-- **Action history.** Up to 16 past action steps, expressed in the current pose's frame, are given to the model as
-  clean conditioning. At episode boundaries the history is shorter.
+  two-arm robot, zero-padded to 64. Each dataset family is normalized with its own statistics (1st/99th percentiles
+  to [-1, 1]); an embodiment ID selects the action input and output projections. See
+  [`cosmos3_h_embodied/README_ACTION_SPACE.md`](cosmos3_h_embodied/README_ACTION_SPACE.md) for the full action space design.
+- **Action history.** Up to 16 past action steps, relative to the current pose like the future ones, are given to
+  the model as clean conditioning. At episode boundaries the history is shorter.
 - **Text.** The task instruction, prefixed with a short description of the robot and setting for each dataset.
 - **Training.** 50,000 iterations on 15 dataset families (55 dataset roots; 11 families are on Hugging Face), with
   the three modes mixed 0.4 / 0.2 / 0.4, on 32 GPUs. The last 3,063 iterations used the H16 recipe in this
@@ -37,7 +39,7 @@ One model handles three tasks on 2.4 s clips (25 frames and 24 actions at 10 Hz,
   [training history](cosmos3_h_embodied/training_differences.md#0-training-history-of-the-released-checkpoint)).
 
 Released weights: [`nvidia/Cosmos3-H-Embodied-Nano`](https://huggingface.co/nvidia/Cosmos3-H-Embodied-Nano) on Hugging Face,
-file `model_bf16.pt` (the network weights in bf16).
+file `checkpoints/h16_50000/c3-h-e-n_model_bf16.safetensors` (the network weights in bf16).
 
 ## Install
 
@@ -51,7 +53,7 @@ All commands below run from this repository's root with the cosmos-framework env
 Convert the released weights to a DCP checkpoint once; cosmos-framework loads checkpoints in this format:
 
 ```bash
-python tools/convert_checkpoint_to_dcp.py --checkpoint model_bf16.pt -o <ckpt_dcp>
+python tools/convert_checkpoint_to_dcp.py --checkpoint c3-h-e-n_model_bf16.safetensors -o <ckpt_dcp>
 ```
 
 `<ckpt_dcp>/model` is used for evaluation and serving; `<ckpt_dcp>` is the training `checkpoint.load_path`.
@@ -72,9 +74,32 @@ python -m cosmos3_h_embodied.scripts.policy_server \
 ```
 
 `POST /predict` takes the current frame, the caption and up to 16 past actions (normalized); it returns 24 actions
-(denormalized) and the predicted video. The request format is described in the module docstring of
+(denormalized) and the predicted video. With `"mode": "forward_dynamics"` and 24 normalized `"action"` rows it returns
+the video for those actions instead. The request format is described in the module docstring of
 `cosmos3_h_embodied/scripts/policy_server.py`. `--normalizer` and `--domain-name` select the action statistics and
 the embodiment (see [Fine-tune on your own data](#fine-tune-on-your-own-data)).
+
+## Simulate
+
+`scripts/simulate.py` rolls the model out from a start frame, chunk by chunk (each 2.4 s chunk starts from the last
+generated frame): forward dynamics generates the video for an action trajectory, `--mode policy --num-chunks N` lets
+the policy act in the generated scene.
+
+```bash
+python -m cosmos3_h_embodied.scripts.simulate --no-guardrails \
+    --checkpoint-path <ckpt_dcp>/model --config-file cosmos3_h_embodied/configs/config.py \
+    --experiment openh_h16_task_prompt --num-steps 35 --guidance 6.0 --seed 0 \
+    --image frame.png --actions actions.npy --history history.npy \
+    --normalizer dvrk_hamlyn_backward_anchored_worldtrans_rot6d_wxyz_c24_20260910.json \
+    --caption "<caption>" --embodiment hamlyn -o outputs/simulate
+```
+
+Actions are in the model's representation ([action space](cosmos3_h_embodied/README_ACTION_SPACE.md)): `[K, 24, D]`,
+each chunk relative to the pose at its start; `--history` holds up to 16 past actions of the first chunk. The output
+is `rollout.mp4` and `rollout.npz` (frames and actions). To start from a recorded episode,
+`quant_eval.py --save-inputs` (see [`README_EVALUATION.md`](cosmos3_h_embodied/README_EVALUATION.md)) writes each
+rollout's inputs to `inputs.npz`; `simulate.py --inputs inputs.npz` reproduces that rollout (up to the small
+run-to-run variation of sampling on GPUs), and changing the actions in the file shows their effect.
 
 ## Evaluate
 
@@ -94,6 +119,20 @@ and `metrics_aggregate.json` hold video PSNR (forward dynamics, policy) and acti
 in normalized action space; history rows are excluded from the action MSE. On the `val` and `full` splits the eval
 turns off the training-time video augmentation (`EVAL_DATASET_OVERRIDES` in
 `cosmos3_h_embodied/configs/experiment_h16.py`), so the model is conditioned on and scored against clean frames.
+`--spread-samples` takes the samples evenly spaced over the split instead of the first ones.
+
+**Quantitative evaluation.** On held-out clips of the 10 public families with validation episodes (640 clips),
+inverse dynamics (20% of the training samples; forward dynamics and policy 40% each) reaches an action MSE of
+0.009 and the policy 0.052 (best of 4 rollouts: 0.033), against 0.075 for the mean recorded trajectory, in
+normalized action space; forward dynamics reaches 26.1 dB PSNR.
+`cosmos3_h_embodied/scripts/quant_eval.py` rolls out forward dynamics autoregressively over held-out episodes, the
+one mode shared with [Cosmos-H-Surgical-Simulator](https://github.com/NVIDIA-Medtech/Cosmos-H-Surgical-Simulator).
+On episodes held out by both models: on dVRK (4.8 s), dynamic PSNR +1.75 dB and PSNR +2.0 dB (better in 88% of the
+rollouts); on CMR Versius (7.2 s), on par in the pixel metrics, better in FID (44 vs 55) and tool consistency
+(GATC +0.047), worse in FVD (274 vs 225) and tool centroid distance (+7.7 px). Over 31.2 s rollouts,
+Cosmos-H-Surgical-Simulator degrades more slowly from about 6 s on. See
+[`cosmos3_h_embodied/README_EVALUATION.md`](cosmos3_h_embodied/README_EVALUATION.md) for the protocol, metrics and
+all results.
 
 ## Fine-tune on Open-H
 
@@ -260,10 +299,19 @@ Training on a single mode specializes the model. To keep its other abilities, ke
 forward dynamics, inverse dynamics and policy 0.4 / 0.2 / 0.4, set by `joint_mode_weights`) or add Open-H families to
 `families`.
 
+## Tutorial: teacher training and Self-Forcing distillation
+
+The [teacher-to-student tutorial](cosmos3_h_embodied/tutorial_teacher_training_and_self_forcing.md)
+explains the path from a pretrained H16 model to four-step and two-step students, including dataset curation,
+the CMR 8,000-unit camera-command filter, the purpose of each training stage and evaluation guidance.
+**Runnable distillation instructions will be added when the relevant training code is publicly released in
+upstream cosmos-framework.** The tutorial currently distinguishes supported public teacher training from the
+reference distillation recipe; it does not include internal distillation code or the private curated dataset.
+
 ## Tests
 
 `pytest` runs the package's CPU tests. Two checks are opt-in:
-`H16_CHECKPOINT=model_bf16.pt pytest tests/test_released_checkpoint.py` (the model built from the config matches the
+`H16_CHECKPOINT=c3-h-e-n_model_bf16.safetensors pytest tests/test_released_checkpoint.py` (the model built from the config matches the
 released weights), and `OPENH_DATA_ROOT=<data root> OPENH_TEST_FAMILIES=dvrk_hamlyn,my_lab pytest
 tests/test_prepared_data.py` (samples of prepared families have the expected shapes and ranges).
 
@@ -271,6 +319,8 @@ tests/test_prepared_data.py` (samples of prepared families have the expected sha
 
 | Path | What |
 |---|---|
+| `cosmos3_h_embodied/README_ACTION_SPACE.md` | Action space: per-embodiment layout, normalization, padding, data mixture |
+| `cosmos3_h_embodied/README_EVALUATION.md` | Quantitative evaluation and benchmark against Cosmos-H-Surgical-Simulator |
 | `cosmos3_h_embodied/data/` | Open-H datasets (generalized dVRK, CMR clinical), H16 history, normalization, transforms, family mixing, history-matched sequence packing |
 | `cosmos3_h_embodied/data/normalizers/` | Action normalization statistics of the released checkpoint (15 families) |
 | `cosmos3_h_embodied/data/exclusions/` | Episodes excluded from training (302), keyed by dataset path |
@@ -278,11 +328,14 @@ tests/test_prepared_data.py` (samples of prepared families have the expected sha
 | `cosmos3_h_embodied/callbacks/` | Dataloader resume state (per-worker sample index and RNG state) |
 | `cosmos3_h_embodied/configs/` | Dataset mixture and experiments (`config.py` registers them with cosmos-framework) |
 | `cosmos3_h_embodied/scripts/eval.py` | Dataset-driven evaluation |
-| `cosmos3_h_embodied/scripts/policy_server.py` | HTTP policy server with action history |
+| `cosmos3_h_embodied/scripts/quant_eval.py` | Autoregressive forward-dynamics rollouts and video metrics (`rollout_metrics.py`) |
+| `cosmos3_h_embodied/scripts/policy_server.py` | HTTP server: policy or forward dynamics, with action history |
+| `cosmos3_h_embodied/scripts/simulate.py` | Forward-dynamics and policy rollouts from a start frame (`rollout_utils.py`) |
 | `tools/data_prep/` | Rebuild the training data from the Hugging Face dataset ([README](tools/data_prep/README.md)) |
-| `tools/convert_checkpoint_to_dcp.py` | Released `.pt` weights → DCP checkpoint |
+| `tools/convert_checkpoint_to_dcp.py` | Released weights (`.safetensors` or `.pt`) → DCP checkpoint |
 | `tools/compute_action_normalizer.py` | Action normalization statistics for your own dataset |
 | `tools/download_openh_samples.py` | Download a few episodes per dataset for a local smoke test |
+| `tools/benchmark/` | Benchmark against Cosmos-H-Surgical-Simulator: episode plan, its rollouts, cross-model scoring, tool metrics, results |
 | `tests/` | CPU tests; checks of the released weights and of prepared data |
 
 ## Reproducibility

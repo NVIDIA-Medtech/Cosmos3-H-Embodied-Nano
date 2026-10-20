@@ -204,3 +204,4 @@ core.*
 /dataset/
 /downloaded_data/
 .ipynb_checkpoints
+design_and_decisions_log.md

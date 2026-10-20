@@ -10,7 +10,7 @@ Experiments:
   (55 roots, some not public) with the caption contexts it was trained with.
 
 Both continue from a model checkpoint (``checkpoint.load_path``, a DCP directory; convert the
-released ``.pt`` with ``tools/convert_checkpoint_to_dcp.py``). Data paths come from
+released weights with ``tools/convert_checkpoint_to_dcp.py``). Data paths come from
 ``OPENH_DATA_ROOT``.
 """
 

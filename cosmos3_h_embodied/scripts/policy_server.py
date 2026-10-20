@@ -1,13 +1,13 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: OpenMDW-1.1
 
-"""HTTP policy server for the Open-H H16 checkpoint (policy mode with action history).
+"""HTTP server for the Open-H H16 checkpoint: policy, or forward dynamics, with action history.
 
 Endpoints:
 
 - ``GET /``: health check.
 - ``GET /info``: model and sampling settings.
-- ``POST /predict``: policy inference.
+- ``POST /predict``: one 2.4 s chunk of policy or forward-dynamics inference.
 
   Request (JSON)::
 
@@ -17,6 +17,8 @@ Endpoints:
         "domain_name": "<embodiment, e.g. hamlyn>",        # optional, server default otherwise
         "image_size": <int>,                                  # optional, see below
         "history_action": [[...], ...],                       # optional, [nH, raw_dim], nH <= 16
+        "mode": "policy" | "forward_dynamics",                # optional, default "policy"
+        "action": [[...], ...],                               # forward dynamics: [24, raw_dim]
         "guidance": <float>, "num_steps": <int>, "seed": <int>,  # optional overrides
         "return_video": <bool>                                # optional, default true
       }
@@ -25,9 +27,11 @@ Endpoints:
   *normalized* space, oldest first, exactly as the training dataset produces them
   (``backward_anchored_world_trans`` + rot6d, normalized with the family's normalizer).
   They are prepended to the action sequence as clean conditioning rows, as in training.
+  Forward dynamics generates the video for the given ``action`` (24 rows, normalized like
+  ``history_action``, relative to the current pose); the response's actions are the given ones.
   ``image_size`` (an int) first resizes the frame to that height, keeping the aspect
   ratio; the frame is then resized and reflection-padded to the training resolution
-  bucket by the training transform.
+  bucket of the 256 tier (the recipe's) by the training transform.
 
   Response: ``{"action": [[...], ...] (T x raw_dim, denormalized), "video": [<base64 PNG>, ...]}``.
   With ``--no-denormalize`` actions are returned in the normalized space.
@@ -68,41 +72,27 @@ import torchvision.transforms.functional as transforms_F
 import tyro
 from PIL import Image
 
-from cosmos3_h_embodied.data.action_normalization import load_action_stats, normalize_action
 from cosmos3_h_embodied.data.domain_utils import get_domain_id
 from cosmos3_h_embodied.data.transforms import ActionTransformPipeline, remove_reflection_padding
+from cosmos3_h_embodied.scripts.rollout_utils import (  # noqa: F401 - re-exported
+    DEFAULT_MAX_ACTION_DIM,
+    MAX_HISTORY_ACTIONS,
+    NORMALIZERS_DIR,
+    RESOLUTION,
+    QuantileDenormalizer,
+    make_policy_transform,
+    make_raw_sample,
+)
 from cosmos_framework.utils import log
 
 # Training recipe values (H16 task-prompt recipe).
 DEFAULT_FPS = 10
 DEFAULT_ACTION_CHUNK_SIZE = 24
-DEFAULT_MAX_ACTION_DIM = 64
-MAX_HISTORY_ACTIONS = 16
-NORMALIZERS_DIR = Path(__file__).resolve().parents[1] / "data" / "normalizers"
 
 
 # ---------------------------------------------------------------------------
 # Request -> batch (no model, no GPU)
 # ---------------------------------------------------------------------------
-
-
-def make_policy_transform(max_action_dim: int = DEFAULT_MAX_ACTION_DIM) -> ActionTransformPipeline:
-    """The training transform of the H16 recipe without tokenizer, dropout and augmentation."""
-    return ActionTransformPipeline(
-        pad_keys=["video"],
-        keep_aspect_ratio=True,
-        tokenizer_config=None,
-        cfg_dropout_rate=0.0,
-        video_temporal_downsample=4,
-        max_action_dim=max_action_dim,
-        action_channel_masking=True,
-        append_viewpoint_info=False,
-        append_duration_fps_timestamps=True,
-        append_resolution_info=True,
-        append_idle_frames=False,
-        format_prompt_as_json=False,
-        video_augment=None,
-    )
 
 
 def decode_base64_png(image_b64: str) -> torch.Tensor:
@@ -129,14 +119,14 @@ def build_policy_batch(
     image: torch.Tensor | None = None,
     image_device: str | torch.device = "cpu",
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Build the model data batch for one policy request.
+    """Build the model data batch for one request (policy, or forward dynamics with ``"action"``).
 
     Args:
         req: The request (see the module docstring).
         transform: Transform from :func:`make_policy_transform`.
         raw_action_dim: Unpadded action width of the embodiment.
         fps: Video/action rate of the recipe (10 Hz).
-        action_chunk_size: Number of future action rows to generate.
+        action_chunk_size: Number of future action rows (24, the recipe's chunk).
         default_domain_name: Embodiment used when the request has no ``domain_name``.
         image: Already decoded frame ``[3, H, W]`` uint8 (otherwise decoded from ``req["image"]``).
         image_device: Device of the batch's ``image_size`` tensor.
@@ -166,36 +156,31 @@ def build_policy_batch(
                 image, size=[image_size, new_w], interpolation=transforms_F.InterpolationMode.BICUBIC, antialias=True
             ).contiguous()
 
-    num_frames = action_chunk_size + 1
-    sample: dict[str, Any] = {
-        "video": image.unsqueeze(1).repeat(1, num_frames, 1, 1),  # [3,T,H,W]
-        "action": torch.zeros((action_chunk_size, raw_action_dim), dtype=torch.float32),  # [T,D_raw]
-        "ai_caption": prompt,
-        "mode": "policy",
-        "conditioning_fps": torch.tensor(fps, dtype=torch.long),
-        "domain_id": torch.tensor(get_domain_id(domain_name), dtype=torch.long),
-    }
-    history = req.get("history_action")
-    if history is not None:
-        history_t = torch.as_tensor(history, dtype=torch.float32)
-        if history_t.numel() == 0:
-            history_t = history_t.reshape(0, raw_action_dim)
-        if history_t.ndim != 2 or history_t.shape[1] != raw_action_dim:
-            raise ValueError(f"'history_action' must be [nH, {raw_action_dim}], got {tuple(history_t.shape)}")
-        if history_t.shape[0] > MAX_HISTORY_ACTIONS:
-            raise ValueError(f"at most {MAX_HISTORY_ACTIONS} history actions, got {history_t.shape[0]}")
-        if not torch.isfinite(history_t).all():
-            raise ValueError("'history_action' must be finite")
-        sample["history_action"] = history_t
-    num_history = 0 if history is None else int(sample["history_action"].shape[0])
+    mode = req.get("mode", "policy")
+    if action_chunk_size != DEFAULT_ACTION_CHUNK_SIZE:
+        raise ValueError(f"action_chunk_size must be {DEFAULT_ACTION_CHUNK_SIZE} (the recipe's chunk)")
+    action = req.get("action") if mode == "forward_dynamics" else None
+    sample = make_raw_sample(
+        image,
+        prompt,
+        get_domain_id(domain_name),
+        raw_action_dim,
+        mode=mode,
+        action=None if action is None else torch.as_tensor(action, dtype=torch.float32),
+        history=req.get("history_action"),
+        fps=fps,
+    )
+    num_history = int(sample["history_action"].shape[0]) if "history_action" in sample else 0
 
-    out = transform(sample, resolution=None)
+    # The recipe's tier: the model was trained at 256 only (with resolution=None the transform would
+    # pick the tier from the frame size, e.g. 480 for a 480p frame).
+    out = transform(sample, resolution=RESOLUTION)
     batch: dict[str, Any] = {
         "video": [[out["video"]]],
         "raw_action_dim": [out["raw_action_dim"]],
         "action_processing_record": [out["action_processing_record"]],
         "action": [[out["action"]]],
-        "mode": ["policy"],
+        "mode": [mode],
         "ai_caption": [out["ai_caption"]],
         "prompt": [out["ai_caption"]],
         "conditioning_fps": [out["conditioning_fps"]],
@@ -204,32 +189,6 @@ def build_policy_batch(
         "sequence_plan": [out["sequence_plan"]],
     }
     return batch, {"num_history_actions": num_history, "image_size": out["image_size"], "prompt": out["ai_caption"]}
-
-
-class QuantileDenormalizer:
-    """Training ``quantile`` normalization (``global`` q01/q99 stats) and its inverse."""
-
-    def __init__(self, normalizer: str | Path) -> None:
-        path = Path(normalizer)
-        if not path.is_file():
-            path = NORMALIZERS_DIR / str(normalizer)
-        stats = load_action_stats(str(path), stats_key="global")
-        self.path = path
-        self.stats = {k: torch.as_tensor(v, dtype=torch.float32) for k, v in stats.items()}
-        self.q01 = self.stats["q01"]  # [D]
-        self.range = (self.stats["q99"] - self.q01).clamp(min=1e-8)  # [D]
-
-    @property
-    def dim(self) -> int:
-        return int(self.q01.shape[0])
-
-    def denormalize(self, action: torch.Tensor) -> torch.Tensor:
-        return (action + 1.0) / 2.0 * self.range.to(action.device) + self.q01.to(action.device)  # [...,D]
-
-    def normalize(self, action: torch.Tensor) -> torch.Tensor:
-        """As in training, including the clip to ``[-NORM_CLIP, NORM_CLIP]`` (e.g. for ``history_action``)."""
-        stats = {k: v.to(action.device) for k, v in self.stats.items()}
-        return normalize_action(action, "quantile", stats)  # [...,D]
 
 
 # ---------------------------------------------------------------------------
@@ -332,7 +291,11 @@ class PolicyService:
             samples = self.model.generate_samples_from_batch(
                 batch, guidance=guidance, seed=[seed], num_steps=num_steps, has_negative_prompt=False
             )
-            action = samples["action"][0].float().squeeze(0)  # [nH+T,D] or [T,D]
+            forward_dynamics = req.get("mode", "policy") == "forward_dynamics"
+            if forward_dynamics:  # the actions are given, not generated
+                action = torch.as_tensor(req["action"], dtype=torch.float32, device="cuda")
+            else:
+                action = samples["action"][0].float().squeeze(0)  # [nH+T,D] or [T,D]
             if req.get("return_video", True):
                 video = self.model.decode(samples["vision"][0]).squeeze(0)  # [C,T,H,W]
                 video = remove_reflection_padding(video, meta["image_size"])
@@ -348,7 +311,7 @@ class PolicyService:
         if self.args.denormalize:
             action = self.normalizer.denormalize(action)
         log.info(
-            f"[policy-server] history={n_hist} steps={num_steps} guidance={guidance} "
+            f"[policy-server] mode={req.get('mode', 'policy')} history={n_hist} steps={num_steps} guidance={guidance} "
             f"ms={(time.monotonic() - t0) * 1000:.0f} prompt={meta['prompt']!r}"
         )
         return {"action": action.cpu().tolist(), "video": video_b64}
