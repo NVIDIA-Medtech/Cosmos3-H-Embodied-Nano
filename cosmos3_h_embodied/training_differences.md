@@ -2,8 +2,7 @@
 
 The released checkpoint was trained with NVIDIA-internal code on NVIDIA-internal copies of the Open-H data. This
 repository re-implements that training on cosmos-framework and rebuilds the data from the public Hugging Face dataset.
-This page lists everything that differs between the two, and what was checked to be identical. Details and dates are
-in [`design_and_decisions_log.md`](../design_and_decisions_log.md).
+This page lists everything that differs between the two, and what was checked to be identical.
 
 In short: for the public part of the data, this repository reproduces the training inputs exactly (with one
 approximately re-encoded dataset) and the training computation up to floating-point precision. What cannot be
@@ -114,5 +113,3 @@ checkpoint:
 - Evaluation on 14 families × 64 validation samples × 3 modes: action MSE agrees within statistical noise in every
   family and mode; video PSNR within 0.08 dB.
 - Policy server: actions agree to 0.4% (relative RMS).
-
-The full results are in section 7 of the design log.

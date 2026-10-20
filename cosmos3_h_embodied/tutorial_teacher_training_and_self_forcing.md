@@ -2,7 +2,7 @@
 
 This guide explains how an H16 action-conditioned world model can be adapted to your data and distilled into four-step and two-step students for interactive video generation. It describes the purpose of each training stage, data preparation and evaluation. It is a conceptual walkthrough, not yet an executable distillation tutorial.
 
-> **Public implementation status.** This repository currently supports H16 bidirectional teacher fine-tuning and evaluation. The causal teacher-forcing and Self-Forcing training implementation for this recipe is not yet publicly available here. This tutorial deliberately does not include that internal implementation or its launchers. **The tutorial will be updated with runnable distillation instructions when the relevant training code is publicly released in upstream [cosmos-framework](https://github.com/NVIDIA/cosmos-framework).** Until then, the distillation sections below describe the reference recipe, not an executable end-to-end pipeline. A 28D CMR control adapter is also not provided by the current public 20D loader.
+> **Implementation status.** This repository supports H16 bidirectional teacher fine-tuning and evaluation. Causal teacher-forcing and Self-Forcing training are not yet supported by [cosmos-framework](https://github.com/NVIDIA/cosmos-framework). **The tutorial will be updated with runnable distillation instructions once cosmos-framework supports them.** Until then, the distillation sections below describe the reference recipe, not an executable end-to-end pipeline. A 28D CMR control adapter is also not provided by the current 20D loader.
 
 For the earlier model family, see the [Cosmos-H-Surgical-Simulator training tutorial](https://github.com/NVIDIA-Medtech/Cosmos-H-Surgical-Simulator/blob/main/docs/tutorial_teacher_training_and_self_forcing.md). Its commands, action representation and trajectory-cache stage are not interchangeable with this Cosmos3 recipe.
 
@@ -25,7 +25,7 @@ The reference uses H16 as an **initial history prefix**. Do not insert a fresh 1
 
 ## 2. Prepare your data and action contract
 
-Start with the repository's [installation and custom-data instructions](../README.md#fine-tune-on-your-own-data) and [Open-H preparation guide](../tools/data_prep/README.md). The public loaders accept LeRobot data with synchronized video, poses, gripper commands and modality metadata.
+Start with the repository's [installation and custom-data instructions](../README.md#fine-tune-on-your-own-data) and [Open-H preparation guide](../tools/data_prep/README.md). The loaders accept LeRobot data with synchronized video, poses, gripper commands and modality metadata.
 
 Before training:
 
@@ -58,33 +58,33 @@ Count unique covered video time as well as accepted window starts. Overlapping w
 
 A 28D surgical extension can retain the pretrained pose/gripper representation and add eight controls: **two energy values, four thumbstick axes and two thumbstick buttons**, across the two hands. Thus, there are six thumbstick dimensions, not eight. The 28 meaningful dimensions are padded to the model's 64-dimensional action input.
 
-The current public Open-H loader supplies the original two-arm 20D pose/gripper representation. Merely changing a dimension count does not implement the 28D extension. A compatible adapter must preserve pose transforms, normalization, channel ordering, control timing and the checkpoint's action-projection mapping. Equal padded tensor shapes do not prove semantic compatibility. Until that adapter is available, use the supported public action contract for your own-data experiments rather than assuming that the extra controls are already supported.
+The current Open-H loader supplies the original two-arm 20D pose/gripper representation. Merely changing a dimension count does not implement the 28D extension. A compatible adapter must preserve pose transforms, normalization, channel ordering, control timing and the checkpoint's action-projection mapping. Equal padded tensor shapes do not prove semantic compatibility. Until that adapter is available, use the supported action contract for your own-data experiments rather than assuming that the extra controls are already supported.
 
-## 3. Establish a public teacher-training baseline
+## 3. Establish a teacher-training baseline
 
-Follow the main README to install the pinned compatible `cosmos-framework` revision, prepare your dataset family and convert the released weights to DCP. Register a forward-dynamics experiment as described in the [public forward-dynamics tutorial](../README.md#tutorial-forward-dynamics-world-model).
+Follow the main README to install the pinned compatible `cosmos-framework` revision, prepare your dataset family and convert the released weights to DCP. Register a forward-dynamics experiment as described in the [forward-dynamics tutorial](../README.md#tutorial-forward-dynamics-world-model).
 
-For a registered `my_lab_fd` experiment, the existing public entry point is:
+For a registered `my_lab_fd` experiment, the entry point is:
 
 ```bash
 python -m cosmos_framework.scripts.export_config -o my_lab_fd.yaml \
     --config-file cosmos3_h_embodied/configs/config.py --experiment my_lab_fd
 ```
 
-Train and evaluate with the commands in that tutorial. This establishes a loader-verified **public teacher baseline**. It does not automatically configure the higher-resolution distillation recipe below. In particular, the public Open-H defaults use a 256-pixel tier and packed sequences; the illustrative settings below use 832 × 480 and one example per rank.
+Train and evaluate with the commands in that tutorial. This establishes a loader-verified **teacher baseline**. It does not automatically configure the higher-resolution distillation recipe below. In particular, the Open-H defaults of this repository use a 256-pixel tier and packed sequences; the illustrative settings below use 832 × 480 and one example per rank.
 
 Keep the exported configuration, dataset version, normalization statistics and parent checkpoint identity with every run. Distinguish a new stage initialized from weights from a full-state continuation restoring optimizer, scheduler, RNG and data position.
 
-### Initialize from the public checkpoint
+### Initialize from the released checkpoint
 
-Use the released **task-prompt Open-H H16 50k checkpoint** linked in the [main README](../README.md#the-model) as the starting point for your own-data adaptation. Convert its weights to DCP using the public conversion tool before teacher training.
+Use the released **task-prompt Open-H H16 50k checkpoint** linked in the [main README](../README.md#the-model) as the starting point for your own-data adaptation. Convert its weights to DCP using the conversion tool before teacher training.
 
 Begin C24 adaptation on your own prepared dataset, then select and qualify a teacher before proceeding to longer horizons and distillation. Your dataset, initialization and intended deployment determine the appropriate training budget.
 
 ## 4. How the distillation stages fit together
 
 ```text
-Public Open-H H16 checkpoint
+Released Open-H H16 checkpoint
   → short-horizon bidirectional teacher (C24)
   → long-horizon bidirectional teacher (C72)
   → causal teacher forcing (TF)
@@ -94,13 +94,13 @@ Public Open-H H16 checkpoint
 
 | Stage | Initialization and purpose |
 |---|---|
-| C24 teacher | Start from the public pretrained checkpoint and adapt bidirectional video prediction to your domain. Short clips provide an initial check of appearance and action conditioning. |
+| C24 teacher | Start from the released checkpoint and adapt bidirectional video prediction to your domain. Short clips provide an initial check of appearance and action conditioning. |
 | C72 teacher | Start from the adapted C24 teacher and train on longer clips to learn temporal behavior over a larger window. |
 | TF | Start from the selected C72 teacher and train with causal attention and recorded conditioning, preparing the model for sequential generation. |
 | Four-step SF | Start the student from the causal TF checkpoint. Train with its own generated context to address the mismatch between recorded training context and autoregressive inference. A fixed C72 scoring teacher and a trainable critic provide distribution-matching supervision. |
 | Two-step SF | Start from the four-step student, retain the scoring teacher and train with a two-step sampling schedule. This further reduces the denoising budget; evaluate the quality/latency tradeoff separately. |
 
-This recipe proceeds directly from TF to SF, without a separate intermediate distillation stage. That does not remove distribution-matching supervision from SF itself. Exact configuration names and supported training commands will be added with the public implementation.
+This recipe proceeds directly from TF to SF, without a separate intermediate distillation stage. That does not remove distribution-matching supervision from SF itself. Exact configuration names and training commands will be added once cosmos-framework supports these stages.
 
 An **illustrative update budget** is C24 2,000 → C72 4,400 → TF 1,000 → four-step SF 300 → two-step SF 300. These values describe a useful starting scale, not a validated schedule for every dataset or for every pretrained initialization. Select continuation budgets from validation rather than treating these numbers as fixed requirements.
 
@@ -118,13 +118,13 @@ An **illustrative update budget** is C24 2,000 → C72 4,400 → TF 1,000 → fo
 | Four-step sampling | Shift-5 schedule, four denoising steps per generated block |
 | Two-step sampling | Shift-5 schedule `[1, 5/6, 0]`, two denoising steps per generated block |
 
-**Each SF300 stage means 50 student updates and 250 critic updates**, not 300 student optimizer updates. Preserve this distinction when comparing compute budgets or implementing the recipe after the upstream release.
+**Each SF300 stage means 50 student updates and 250 critic updates**, not 300 student optimizer updates. Preserve this distinction when comparing compute budgets or implementing the recipe.
 
 Treat these budgets as a reference, not a convergence guarantee. Monitor held-out generation, action response and longer-rollout drift alongside loss. More data does not automatically justify an identical budget, and a lower denoising loss does not guarantee a better distilled student.
 
 ## 5. Qualification before a full run
 
-Once the public distillation implementation becomes available, qualify the complete path on a small dataset before allocating a full training run:
+Once distillation training is supported, qualify the complete path on a small dataset before allocating a full training run:
 
 - Verify a forward/backward pass at C24, C72, TF and each SF sampling budget; require finite losses and gradients.
 - Exercise both student and critic optimizer updates, then save and resume. Check stage iteration counts and restored state.
@@ -132,7 +132,7 @@ Once the public distillation implementation becomes available, qualify the compl
 - Check that action-projection mappings and normalization survive checkpoint conversion and export.
 - Compare exported inference against training validation with matched inputs, sampling settings and seeds.
 
-The generic public H16 teacher and this recipe description alone do not establish those checks for a new distillation port. No internal training source is included in this tutorial.
+The H16 teacher and this recipe description alone do not establish those checks for a new distillation implementation.
 
 ## 6. Evaluate and deploy both students
 
@@ -153,4 +153,4 @@ For deployment, package weights with the action layout, normalization, resolutio
 
 ## Next update
 
-When the relevant distillation training code is released in upstream `cosmos-framework`, this tutorial will add the supported version, executable C24/C72/TF/SF configurations, four-step → two-step continuation commands, and tested export/deployment instructions. Until then, use the current public teacher-training documentation and the reference methodology above without treating the missing distillation stages as runnable commands.
+Once `cosmos-framework` supports distillation training, this tutorial will add the supported version, executable C24/C72/TF/SF configurations, four-step → two-step continuation commands, and tested export/deployment instructions. Until then, use the current teacher-training documentation and the reference methodology above without treating the missing distillation stages as runnable commands.

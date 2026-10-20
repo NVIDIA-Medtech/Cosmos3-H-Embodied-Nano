@@ -304,9 +304,9 @@ forward dynamics, inverse dynamics and policy 0.4 / 0.2 / 0.4, set by `joint_mod
 The [teacher-to-student tutorial](cosmos3_h_embodied/tutorial_teacher_training_and_self_forcing.md)
 explains the path from a pretrained H16 model to four-step and two-step students, including dataset curation,
 the CMR 8,000-unit camera-command filter, the purpose of each training stage and evaluation guidance.
-**Runnable distillation instructions will be added when the relevant training code is publicly released in
-upstream cosmos-framework.** The tutorial currently distinguishes supported public teacher training from the
-reference distillation recipe; it does not include internal distillation code or the private curated dataset.
+**Runnable distillation instructions will be added once cosmos-framework supports causal teacher-forcing and
+Self-Forcing training.** Until then, teacher fine-tuning is the supported training path, and the distillation
+stages are described as a reference recipe.
 
 ## Tests
 
@@ -344,8 +344,7 @@ The training data of the released checkpoint can be rebuilt from Hugging Face fo
 some roots, captions and one video stream were never published. The code was validated against the original
 training code on the original data: identical samples, matching training loss, and matching evaluation metrics.
 [`cosmos3_h_embodied/training_differences.md`](cosmos3_h_embodied/training_differences.md) lists every difference
-between the released checkpoint's training run and what this repository reproduces. Design decisions and validation
-results are recorded in [`design_and_decisions_log.md`](design_and_decisions_log.md).
+between the released checkpoint's training run and what this repository reproduces, and what was validated.
 
 ## Citation and license
 
