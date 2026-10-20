@@ -26,6 +26,7 @@ init_script(
 import json
 from pathlib import Path
 
+import numpy as np
 import pydantic
 import torch
 import tyro
@@ -62,6 +63,9 @@ class EvalArgs(pydantic.BaseModel):
     """Compute per-sample metrics and write metrics.json sidecars + metrics_aggregate.json."""
     full_metrics: bool = False
     """Also compute SSIM and LPIPS for generated video (LPIPS needs the ``lpips`` package)."""
+    spread_samples: bool = False
+    """Take the ``dataset.num_samples`` samples evenly spaced over the split instead of the first
+    ones (the split lists each root's episodes in order, so the first samples come from few episodes)."""
     gt_dir: Path | None = None
     """Directory of ground-truth videos. Required for vision eval."""
     predictions_dir: Path | None = None
@@ -86,10 +90,18 @@ def eval_action(args: EvalArgs) -> list[SampleOutputs]:
     log.debug(f"{args.__class__.__name__}({args})")
 
     register_checkpoints()
+    num_samples = args.dataset.num_samples
+    spread = args.spread_samples and num_samples is not None
     samples = create_dataset(
-        args.dataset,
+        args.dataset.model_copy(update={"num_samples": None}) if spread else args.dataset,
         config_args=setup,
     )
+    if len(samples) == 0:
+        raise ValueError(f"No samples in the {args.dataset.dataset_split!r} split of {args.dataset.dataset!r}")
+    if spread:
+        # create_dataset takes the first num_samples ids; select evenly spaced ones instead.
+        ids = samples._sample_ids
+        samples._sample_ids = [ids[i] for i in np.unique(np.linspace(0, len(ids) - 1, num_samples).round().astype(int))]
     log.info(f"Loaded {len(samples)} samples in memory")
 
     pipe = setup.get_inference_cls().create(setup)

@@ -3,7 +3,7 @@
 
 """The model built from the public config has exactly the released checkpoint's tensors.
 
-Needs the released weights: ``H16_CHECKPOINT=<model_bf16.pt> pytest tests/test_released_checkpoint.py``.
+Needs the released weights: ``H16_CHECKPOINT=<c3-h-e-n_model_bf16.safetensors> pytest tests/test_released_checkpoint.py``.
 Builds the model on the meta device (no GPU, no weights loaded into memory).
 """
 
@@ -21,7 +21,7 @@ REPO = Path(__file__).resolve().parents[1]
 CHECKPOINT = os.environ.get("H16_CHECKPOINT")
 
 
-@pytest.mark.skipif(not CHECKPOINT or not Path(CHECKPOINT).is_file(), reason="set H16_CHECKPOINT to the released .pt")
+@pytest.mark.skipif(not CHECKPOINT or not Path(CHECKPOINT).is_file(), reason="set H16_CHECKPOINT to the released weights")
 def test_network_matches_released_checkpoint(tmp_path) -> None:
     env = dict(os.environ, OPENH_DATA_ROOT="/DATA", PYTHONPATH=str(REPO))
     config = tmp_path / "h16.yaml"

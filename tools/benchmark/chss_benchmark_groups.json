@@ -1,0 +1,15 @@
+{
+ "cmr_surgical/cholecystectomy": "CMR Versius, 7.2 s",
+ "cmr_surgical/hysterectomy": "CMR Versius, 7.2 s",
+ "cmr_surgical/inguinal_hernia": "CMR Versius, 7.2 s",
+ "cmr_surgical/prostatectomy": "CMR Versius, 7.2 s",
+ "hamlyn/needle_grasp_and_handover": "dVRK, 4.8 s",
+ "hamlyn/peg_transfer": "dVRK, 4.8 s",
+ "hamlyn/suturing_2": "dVRK, 4.8 s",
+ "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/needle_transfer": "dVRK, 4.8 s",
+ "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/peg_transfer": "dVRK, 4.8 s",
+ "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/tissue_retraction": "dVRK, 4.8 s",
+ "turin/mitic_lerobot_ex_vivo": "dVRK, 4.8 s",
+ "ucberkeley/debridement_lerobot": "dVRK, 4.8 s",
+ "ucsd/surgical_learning_dataset": "dVRK, 4.8 s"
+}

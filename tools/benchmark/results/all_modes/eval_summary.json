@@ -1,0 +1,123 @@
+{
+  "cmr_clinical": {
+    "fd_psnr": 18.55747222509887,
+    "id_mse": 0.018735981910595,
+    "policy_mse_mean": 0.10129545951269847,
+    "policy_mse_best": 0.05641076501478892,
+    "policy_psnr_mean": 16.66351261139804,
+    "policy_psnr_best": 17.778003888589538,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.09129432003553896
+  },
+  "dvrk_hamlyn": {
+    "fd_psnr": 28.677564655908853,
+    "id_mse": 0.009463644782954361,
+    "policy_mse_mean": 0.05203852191516489,
+    "policy_mse_best": 0.03534802021749783,
+    "policy_psnr_mean": 23.918892154090877,
+    "policy_psnr_best": 25.093838239739284,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.09976410395606905
+  },
+  "dvrk_jhu": {
+    "fd_psnr": 24.459928894406772,
+    "id_mse": 0.017600304985307957,
+    "policy_mse_mean": 0.08744908862172451,
+    "policy_mse_best": 0.05438925359885616,
+    "policy_psnr_mean": 21.558704976827297,
+    "policy_psnr_best": 22.376158063237945,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.09861577333534251
+  },
+  "dvrk_obuda": {
+    "fd_psnr": 29.905961266222185,
+    "id_mse": 0.005671961427879069,
+    "policy_mse_mean": 0.05032979127281578,
+    "policy_mse_best": 0.030119223694782704,
+    "policy_psnr_mean": 27.560343662617846,
+    "policy_psnr_best": 28.190636754684597,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.09888695363787661
+  },
+  "dvrk_smarts": {
+    "fd_psnr": 21.727839164709398,
+    "id_mse": 0.011245957772189286,
+    "policy_mse_mean": 0.07212213146704016,
+    "policy_mse_best": 0.05320939613011433,
+    "policy_psnr_mean": 18.945825433891887,
+    "policy_psnr_best": 19.590961535652387,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.08306981969144553
+  },
+  "dvrk_stanford": {
+    "fd_psnr": 30.779389666886303,
+    "id_mse": 0.009742363311488589,
+    "policy_mse_mean": 0.04858561945297879,
+    "policy_mse_best": 0.030811973987056263,
+    "policy_psnr_mean": 26.611993852736173,
+    "policy_psnr_best": 27.5439506832778,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.10597460733957834
+  },
+  "dvrk_tud_grasping_retraction": {
+    "fd_psnr": 25.530535343267147,
+    "id_mse": 0.004544139269683001,
+    "policy_mse_mean": 0.02460591817589375,
+    "policy_mse_best": 0.01870554091374288,
+    "policy_psnr_mean": 25.787384701690684,
+    "policy_psnr_best": 26.0919380283555,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.026053194139635836
+  },
+  "dvrk_ucberkeley": {
+    "fd_psnr": 31.199278982965165,
+    "id_mse": 0.0018606518342494383,
+    "policy_mse_mean": 0.012720573346769015,
+    "policy_mse_best": 0.007159895750191936,
+    "policy_psnr_mean": 24.501541929799338,
+    "policy_psnr_best": 25.94673915366466,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.05275719736184992
+  },
+  "dvrk_ucsd": {
+    "fd_psnr": 25.269141891859363,
+    "id_mse": 0.0058207395477438695,
+    "policy_mse_mean": 0.02185163710873894,
+    "policy_mse_best": 0.015669657070247922,
+    "policy_psnr_mean": 24.441235105329262,
+    "policy_psnr_best": 25.175573379186886,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.03932555131314625
+  },
+  "turin_mitic": {
+    "fd_psnr": 24.758159237010773,
+    "id_mse": 0.0021959574621632783,
+    "policy_mse_mean": 0.046676764009134786,
+    "policy_mse_best": 0.029375105710641947,
+    "policy_psnr_mean": 20.031200330445294,
+    "policy_psnr_best": 21.017522176888225,
+    "samples": 64,
+    "policy_runs": 4,
+    "baseline_mse": 0.05119007367102911
+  },
+  "All": {
+    "fd_psnr": 26.08652713283348,
+    "id_mse": 0.008688170230425386,
+    "policy_mse_mean": 0.05176755048829591,
+    "policy_mse_best": 0.03311988320879209,
+    "policy_psnr_mean": 23.00206347588267,
+    "policy_psnr_best": 23.88053219032768,
+    "samples": 640,
+    "policy_runs": 4,
+    "baseline_mse": 0.07469315944815122
+  }
+}
