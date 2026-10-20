@@ -1,0 +1,668 @@
+[
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4571,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4577,
+  "start_frame": 264,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4596,
+  "start_frame": 144,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4635,
+  "start_frame": 280,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4659,
+  "start_frame": 536,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4696,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4720,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4726,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/cholecystectomy",
+  "episode": 4781,
+  "start_frame": 960,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7073,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7105,
+  "start_frame": 1536,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7130,
+  "start_frame": 184,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7192,
+  "start_frame": 24,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7213,
+  "start_frame": 448,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7270,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7271,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7276,
+  "start_frame": 256,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7316,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7321,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7326,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7332,
+  "start_frame": 312,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7339,
+  "start_frame": 640,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7342,
+  "start_frame": 1248,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7376,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7379,
+  "start_frame": 96,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/hysterectomy",
+  "episode": 7422,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 6935,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 6952,
+  "start_frame": 1504,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 6978,
+  "start_frame": 2336,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 6989,
+  "start_frame": 448,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7028,
+  "start_frame": 456,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7029,
+  "start_frame": 2352,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7037,
+  "start_frame": 576,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7052,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7067,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7082,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7139,
+  "start_frame": 216,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7164,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7198,
+  "start_frame": 1352,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7210,
+  "start_frame": 1440,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7276,
+  "start_frame": 2096,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/inguinal_hernia",
+  "episode": 7279,
+  "start_frame": 424,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9895,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9902,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9923,
+  "start_frame": 64,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9943,
+  "start_frame": 800,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9985,
+  "start_frame": 2152,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9989,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9992,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 9996,
+  "start_frame": 1616,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10094,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10119,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10123,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10130,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10157,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10170,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10172,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10196,
+  "start_frame": 104,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10233,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10247,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10254,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10257,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10286,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "cmr_surgical/prostatectomy",
+  "episode": 10320,
+  "start_frame": 0,
+  "chss_embodiment": "cmr_versius",
+  "chss_exclude_splits": null,
+  "num_frames": 72
+ },
+ {
+  "root": "hamlyn/needle_grasp_and_handover",
+  "episode": 136,
+  "start_frame": 0,
+  "chss_embodiment": "hamlyn_30hz",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "hamlyn/peg_transfer",
+  "episode": 313,
+  "start_frame": 0,
+  "chss_embodiment": "hamlyn_30hz",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "hamlyn/suturing_2",
+  "episode": 174,
+  "start_frame": 0,
+  "chss_embodiment": "hamlyn_30hz",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/needle_transfer",
+  "episode": 676,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_stanford_real",
+  "chss_exclude_splits": [
+   "fail",
+   "bad_frames"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/needle_transfer",
+  "episode": 698,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_stanford_real",
+  "chss_exclude_splits": [
+   "fail",
+   "bad_frames"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/peg_transfer",
+  "episode": 530,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_stanford_real",
+  "chss_exclude_splits": [
+   "fail"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/tissue_retraction",
+  "episode": 630,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_stanford_real",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "stanford/collaborative_haptics_and_robotics_in_medicine_lab/real_robot_dvrk/tissue_retraction",
+  "episode": 672,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_stanford_real",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "turin/mitic_lerobot_ex_vivo",
+  "episode": 689,
+  "start_frame": 0,
+  "chss_embodiment": "turin_mitic_ex_vivo",
+  "chss_exclude_splits": [
+   "failure"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "turin/mitic_lerobot_ex_vivo",
+  "episode": 691,
+  "start_frame": 0,
+  "chss_embodiment": "turin_mitic_ex_vivo",
+  "chss_exclude_splits": [
+   "failure"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "turin/mitic_lerobot_ex_vivo",
+  "episode": 692,
+  "start_frame": 0,
+  "chss_embodiment": "turin_mitic_ex_vivo",
+  "chss_exclude_splits": [
+   "failure"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "turin/mitic_lerobot_ex_vivo",
+  "episode": 707,
+  "start_frame": 0,
+  "chss_embodiment": "turin_mitic_ex_vivo",
+  "chss_exclude_splits": [
+   "failure"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "turin/mitic_lerobot_ex_vivo",
+  "episode": 724,
+  "start_frame": 0,
+  "chss_embodiment": "turin_mitic_ex_vivo",
+  "chss_exclude_splits": [
+   "failure"
+  ],
+  "num_frames": 48
+ },
+ {
+  "root": "ucberkeley/debridement_lerobot",
+  "episode": 570,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_ucb",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "ucberkeley/debridement_lerobot",
+  "episode": 580,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_ucb",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "ucsd/surgical_learning_dataset",
+  "episode": 870,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_ucsd",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ },
+ {
+  "root": "ucsd/surgical_learning_dataset",
+  "episode": 883,
+  "start_frame": 0,
+  "chss_embodiment": "dvrk_ucsd",
+  "chss_exclude_splits": null,
+  "num_frames": 48
+ }
+]

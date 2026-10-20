@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: OpenMDW-1.1
+
+# Installs the ``cosmos3_h_embodied`` package (Open-H surgical training and inference on
+# cosmos-framework). Install cosmos-framework first (validated at revision 7cfaf78, see
+# README.md), then, with its environment activated: ``uv pip install -e .``.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cosmos3-h-embodied"
+version = "0.1.0"
+description = "Cosmos3-H-Embodied-Nano: Open-H surgical robotics recipes (H16 action history) on cosmos-framework"
+authors = [{ name = "NVIDIA Corporation" }]
+requires-python = ">=3.10,<3.14"
+license = { text = "OpenMDW-1.1" }
+readme = "README.md"
+dependencies = [
+  "cosmos-framework",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["cosmos3_h_embodied"]
+
+[tool.hatch.build.targets.sdist]
+include = ["cosmos3_h_embodied", "tools", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning"]
