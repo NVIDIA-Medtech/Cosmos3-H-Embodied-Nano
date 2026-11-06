@@ -1,0 +1,388 @@
+{
+  "date": "2026-11-05",
+  "framework_revision": "1a2f03ab6111b457633827736f94f67d55bd5202",
+  "qualification_execution": "Independent reference smoke completed on 2026-11-02 after integrated evaluator fixes; all six training stages, restart probes, exports and native AR inference completed.",
+  "reference_runtime": {
+    "gpu_count": 8,
+    "gpu_model": "NVIDIA H100 80GB HBM3",
+    "torch": "2.10.0+cu130",
+    "cuda": "13.0",
+    "container": "nvcr.io/nvidia/pytorch:26.06-py3",
+    "host_memory": "Exclusive whole-node allocation; 512 GiB was a planning request, not a measured minimum",
+    "world_size": 8,
+    "effective_batch": 8,
+    "gradient_accumulation": 1
+  },
+  "cpu_tests": {
+    "status": "passed",
+    "tests": 31,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 29.672
+  },
+  "configuration": {
+    "status": "passed",
+    "stages": [
+      "c24_a",
+      "c24_b",
+      "c72",
+      "tf",
+      "sf4",
+      "sf2"
+    ]
+  },
+  "fresh_environment": "passed: public clone plus prepublication companion files, isolated bootstrap and pinned public dependencies; no pre-existing model/data caches",
+  "asset_downloads": "passed: pinned public initializer, VAE, text tokenizer and three public dataset episodes",
+  "full_weight_migration": "passed: initializer identity, semantic migration receipt and saved projection readback",
+  "actual_loader": {
+    "status": "passed",
+    "c24": {
+      "action_shape": [
+        40,
+        64
+      ],
+      "video_shape": [
+        3,
+        25,
+        480,
+        832
+      ],
+      "history": 16
+    },
+    "c72": {
+      "action_shape": [
+        88,
+        64
+      ],
+      "video_shape": [
+        3,
+        73,
+        480,
+        832
+      ],
+      "history": 16
+    }
+  },
+  "gpu_forward_backward": {
+    "status": "passed",
+    "updates_per_rank": {
+      "c24_a": 2,
+      "c24_b": 2,
+      "c72": 2,
+      "tf": 2,
+      "sf4": 12,
+      "sf2": 12
+    },
+    "finite_losses_all_ranks": true,
+    "runtime_finite_gradient_gate": "passed",
+    "sf_optimizer_steps_per_stage": {
+      "student": 2,
+      "critic": 10
+    }
+  },
+  "full_state_resume": {
+    "status": "restart_paths_passed",
+    "c24_a": "1 -> 2",
+    "sf4": "6 -> 12",
+    "uninterrupted_full_model_equivalence": "not_established"
+  },
+  "export_and_native_inference": {
+    "status": "passed_after_evaluator_fixes",
+    "students": [
+      "sf4",
+      "sf2"
+    ],
+    "regular_weights": true,
+    "dtype": "bfloat16",
+    "tensor_count_per_export": 809,
+    "exported_pt_tensor_readback": "exact",
+    "autoregressive": true,
+    "denoising_steps": {
+      "sf4": 4,
+      "sf2": 2
+    },
+    "video_frames": 73,
+    "fps": 10,
+    "history_lengths_tested": [
+      0
+    ],
+    "modes": [
+      "recorded",
+      "energy_off"
+    ],
+    "energy_intervention_changed_conditioning": false
+  },
+  "evaluator_fixes": {
+    "implementation": "cosmos3_h_embodied/dreams/evaluate.py",
+    "tests": "tools/dreams/tests/test_evaluate_args.py",
+    "changes": [
+      "Write real normalized conditioning action file and history metadata for forward-dynamics argument validation",
+      "Explicitly select AR for causal checkpoints instead of inheriting the non-AR modality default",
+      "Select fixed distilled schedule without a conflicting num_steps override"
+    ],
+    "requires_manual_patch": false,
+    "reference_run_implementation_sha256": "da8a481f5fd4f44c1be381e96ed5198cf2eb597dae3abb59d91410cd74081656",
+    "current_implementation_sha256": "41d4dc38acf714eeccf46eaeddc1fe62e8eb62c6897126b7f8ff112e973f524d"
+  },
+  "hardware_portability": {
+    "eight_gpus": "reference configuration, not a mandatory GPU count",
+    "two_gpu_execution": "Reported: two 48 GB Ampere/Ada GPUs passed setup/tests/migration/preflight; unchanged C24 A OOM at step 1 before optimizer update",
+    "mixed_gpu_execution": "Setup/BF16/preflight passed on the reported mixed pair; training failed for memory capacity",
+    "low_vram_offload_preset": "not_provided",
+    "released_student_single_gpu": "Reported: released SF4/SF2 inference passed on one 48 GB Ada GPU, including genuine H16; approximately 38.5 GB peak reported",
+    "evidence": "qualification_portability.md"
+  },
+  "remaining_gaps": [
+    "Smoke-exported student inference with genuine H16 (released-student H16 passed in reported portability review)",
+    "Energy intervention with nonzero recorded energy",
+    "Full-model uninterrupted/resumed numerical equivalence",
+    "Direct tensor comparison for frozen teacher and parameter changes",
+    "Reviewed research selection and full curriculum",
+    "Released-student quality comparison and long-rollout qualification",
+    "Other training topologies and memory-saving presets",
+    "Independent released-student launcher GPU run and research workflow beyond CPU regression coverage"
+  ],
+  "quality_parity": "not_established",
+  "static_checks": {
+    "tutorial_relative_links": "passed",
+    "python_syntax": "passed",
+    "shell_syntax": "passed",
+    "launcher_argument_routing": "passed: default 8, explicit 2, invalid counts rejected, paths with spaces; mocked launcher, no GPU execution",
+    "new_gpu_run_for_hardware_adaptation": "not_performed"
+  },
+  "measured_training_peak_gib": {
+    "c24_a": {
+      "allocated": 23.171,
+      "reserved": 27.352
+    },
+    "c24_b": {
+      "allocated": 23.171,
+      "reserved": 29.16
+    },
+    "c72": {
+      "allocated": 24.671,
+      "reserved": 30.104
+    },
+    "tf": {
+      "allocated": 38.213,
+      "reserved": 47.949
+    },
+    "sf4": {
+      "allocated": 57.385,
+      "reserved": 73.307
+    },
+    "sf2": {
+      "allocated": 57.385,
+      "reserved": 73.307
+    }
+  },
+  "record_scope": "Top-level reference GPU results describe the 2026-11-02 implementation; portability observations, the 2026-11-05 downstream run and current revision checks are separate records.",
+  "reported_portability_review": {
+    "date": "2026-11-04",
+    "evidence": "qualification_portability.md",
+    "independently_rerun_by_maintainer": false,
+    "released_student_history_lengths": [
+      0,
+      16
+    ],
+    "energy_intervention_changed_conditioning": false,
+    "deviations": [
+      "Assets prefetched to expected paths and subsequently checked",
+      "Student configs generated with external helper scripts before inference-only support was added"
+    ],
+    "quality_scope": "Three windows from one episode, possible pretraining overlap; no general quality conclusion"
+  },
+  "current_revision": {
+    "gpu_run": "Full bounded smoke passed in earlier run; fresh documented setup including early media and scheduler checks subsequently passed independently",
+    "changes": [
+      "Inference-only downloads, config generation and verified conversion",
+      "Full research specs, periodic saves and explicit validation selection",
+      "Separate atomic A/B preparation and full-subset download/size inventory",
+      "Teacher evaluation instructions and checkpoint evidence",
+      "Managed Python, all-device BF16 check and failure-memory callback",
+      "Native config deserialization and architecture JSON roundtrip",
+      "Unset conflicting UV_PYTHON_PREFERENCE only for explicitly managed uv sync",
+      "Early FFmpeg/TorchCodec load check before model/data downloads",
+      "GPU GRES allocation now caller-supplied; bytecode suppression and explicit image prerequisites"
+    ],
+    "regression_tests": {
+      "status": "passed",
+      "tests": 55,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "scope": "CPU-only; includes real pinned framework config composition/deserialization, tiny DCP conversion, mocked downloads/launches and research handoffs; no full-model GPU execution; five early media-dependency checks added after latest downstream rerun"
+    },
+    "full_curriculum_convergence": "not_established",
+    "static_checks": {
+      "tutorial_relative_links": 30,
+      "shell_examples": 16,
+      "python_json_shell_syntax": "passed",
+      "changed_python_lint": "passed",
+      "generic_path_scan": "passed",
+      "mocked_released_launcher_and_rerun": "passed"
+    },
+    "bootstrap_managed_python_fresh_install": "Passed in fresh independent rerun with uv installed inside the container; conflicting uv flags correction verified end to end",
+    "actual_preflight_entry_point": {
+      "status": "passed",
+      "stages": [
+        "c24_a",
+        "c24_b",
+        "c72",
+        "tf",
+        "sf4",
+        "sf2"
+      ],
+      "scope": "Full training-config serialization, native deserialization and concrete architecture-config materialization; no weights or media loaded"
+    },
+    "bootstrap_flag_check": {
+      "status": "passed",
+      "uv": "0.11.29",
+      "original_exit_code": 2,
+      "corrected_exit_code": 0,
+      "managed_python": "3.13.14",
+      "scope": "Offline dry run of exact sync command on a dependency-free temporary project; no full framework installation or GPU execution"
+    },
+    "setup_checks_after_rerun": {
+      "bash_examples": 21,
+      "syntax_and_links": "passed",
+      "missing_uv": "passed",
+      "media_failure_stops_both_launchers_before_downloads": "passed",
+      "gpu_gres_header": "removed",
+      "generic_names": "passed"
+    },
+    "finalization": "Setup-only exit and image-build shell guards validated locally; training implementation and recipe unchanged",
+    "final_shell_checks": {
+      "tutorial_shell_blocks": 22,
+      "links_and_syntax": "passed",
+      "setup_only_exit": "passed; stops after tests without run spec/assets",
+      "default_mode": "passed; proceeds to normal run initialization",
+      "invalid_mode_and_test_failure": "passed; errors preserved",
+      "scheduler_environment_forwarding": "passed with mocked srun",
+      "image_import_failure": "passed; no create/export and parent shell survives",
+      "existing_image_guard": "passed; no overwrite and parent shell survives",
+      "release_files": 37,
+      "gpu_work": "none"
+    }
+  },
+  "reported_downstream_run": {
+    "date": "2026-11-05",
+    "evidence": "Independent downstream report retained locally; public instructions and limitations are included in tutorial_teacher_training_and_self_forcing.md",
+    "source": "Independent test-agent report and retained artifacts; not rerun by maintainer",
+    "unchanged_quickstart": "failed during bootstrap",
+    "pipeline": "passed after documented container-import and uv sync workarounds",
+    "runtime": {
+      "gpu_count": 8,
+      "gpu_model": "NVIDIA H100 80GB",
+      "container": "nvcr.io/nvidia/pytorch:26.06-py3",
+      "python": "3.13.14",
+      "uv": "0.11.29",
+      "torch": "2.10.0+cu130"
+    },
+    "fresh_public_assets": true,
+    "repository_modified_by_test_agent": false,
+    "tests_passed": 50,
+    "training_stages_passed": [
+      "c24_a",
+      "c24_b",
+      "c72",
+      "tf",
+      "sf4",
+      "sf2"
+    ],
+    "resume_checks": {
+      "c24_a": "1 -> 2",
+      "sf4": "6 -> 12"
+    },
+    "exports_and_reloads": [
+      "sf4",
+      "sf2"
+    ],
+    "evaluation": {
+      "rollouts": 4,
+      "split": "val",
+      "samples_per_student": 1,
+      "seed": 28003,
+      "history_lengths": [
+        0
+      ],
+      "modes": [
+        "recorded",
+        "energy_off"
+      ],
+      "energy_intervention_changed_conditioning": false,
+      "psnr_db": {
+        "sf4": 16.3196,
+        "sf2": 16.1397,
+        "repeat_first_frame": 21.4535
+      },
+      "quality_parity": "not_established; both students below static baseline"
+    },
+    "workarounds": [
+      "Private Enroot common::curl helper uses regular response files; explicit import then Pyxis local image",
+      "env -u UV_PYTHON_PREFERENCE on uv sync while retaining --managed-python"
+    ]
+  },
+  "reported_downstream_rerun": {
+    "date": "2026-11-05",
+    "source": "Independent test-agent report; pipeline, unit-test XML, export receipts and evaluation results inspected by maintainer",
+    "gpu_count": 8,
+    "gpu_model": "NVIDIA H100 80 GB",
+    "unchanged_quickstart": "failed: whole-node GRES, missing uv inside container, missing FFmpeg shared libraries at evaluation",
+    "corrected_managed_python_bootstrap": "passed in fresh runtime after uv installed",
+    "pipeline": "all six stages, both resume checks, both exports/reloads and four evaluation rollouts passed after environment workarounds",
+    "training_resume_export_evaluation_code_fixes": "none",
+    "tests_passed": 50,
+    "tensors_per_export": 809,
+    "export_dtype": "bfloat16",
+    "evaluation": {
+      "history_lengths": [
+        0
+      ],
+      "energy_intervention_changed_conditioning": false,
+      "psnr_db": {
+        "sf4": 16.27379433725396,
+        "sf2": 16.167680333507178,
+        "repeat_first_frame": 21.45353329898795
+      }
+    },
+    "enroot_curl_failure": "not_observed",
+    "image": "nvcr.io/nvidia/pytorch:26.06-py3 with documented apt packages and uv 0.11.29 installed",
+    "disk_usage_tb": "approximately 1.5, reported"
+  },
+  "reported_setup_validation": {
+    "date": "2026-11-05",
+    "source": "Independent fresh setup run; test XML, runtime report and MP4 decode log inspected by maintainer",
+    "documented_setup": "passed after retrying transient GitHub HTTP 504 during uv sync in the same workspace",
+    "code_fixes_required": false,
+    "gpu_count": 8,
+    "gpu_model": "NVIDIA H100 80 GB",
+    "python": "3.13.14",
+    "torch": "2.10.0+cu130",
+    "ffmpeg": "6.1.1",
+    "torchcodec": "0.10.0+cu130",
+    "tests": {
+      "passed": 55,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "image_recipe": "passed",
+    "scheduler_launcher": "passed with whole-node allocation",
+    "h16_patch": "applied and verified",
+    "bf16_all_devices": "passed",
+    "small_mp4_decode": {
+      "companion_data_decode": "passed",
+      "torchcodec": "passed"
+    },
+    "intentional_stop": "Test agent used a run.json directory sentinel after checks to prevent model/data downloads; final package now provides DREAMS_SETUP_ONLY=1 instead",
+    "not_exercised": [
+      "model/data downloads",
+      "migration",
+      "preflight",
+      "training",
+      "export",
+      "evaluation"
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "framework_revision": "1a2f03ab6111b457633827736f94f67d55bd5202",
+  "initializer": {
+    "repository": "nvidia/Cosmos3-H-Embodied-Nano",
+    "revision": "710459f061e0ddc0f4cbd8a581e686efb013839b",
+    "sha256": "8155ce5c3dec315ea3bf5c022c42f1286fc9f62878205581c6ca2aa62eb79873",
+    "file": "checkpoints/h16_50000/c3-h-e-n_model_bf16.safetensors"
+  },
+  "students": {
+    "repository": "nvidia/Cosmos3-H-Dreams",
+    "revision": "fd87afe3fd97e9b352b09d9ada88c944f5621eb9",
+    "files": ["checkpoints/exp15/c3-h-d_4-step_model_bf16.safetensors", "checkpoints/exp15/c3-h-d_2-step_model_bf16.safetensors"]
+  },
+  "vae": {
+    "repository": "Wan-AI/Wan2.2-TI2V-5B",
+    "revision": "921dbaf3f1674a56f47e83fb80a34bac8a8f203e",
+    "file": "Wan2.2_VAE.pth"
+  },
+  "text_tokenizer": {
+    "repository": "nvidia/Cosmos3-Nano",
+    "revision": "e59a53c25979a090fa8706c9acc0c254a6e89b92",
+    "prefix": "text_tokenizer/"
+  },
+  "dataset": {
+    "repository": "nvidia/PhysicalAI-Robotics-Open-H-Embodiment",
+    "revision": "e29dda7cabf2a2626634c7822db27695553ae523",
+    "prefix": "Surgical/cmr_surgical/cholecystectomy"
+  }
+}

@@ -302,11 +302,28 @@ forward dynamics, inverse dynamics and policy 0.4 / 0.2 / 0.4, set by `joint_mod
 ## Tutorial: teacher training and Self-Forcing distillation
 
 The [teacher-to-student tutorial](cosmos3_h_embodied/tutorial_teacher_training_and_self_forcing.md)
-explains the path from a pretrained H16 model to four-step and two-step students, including dataset curation,
-the CMR 8,000-unit camera-command filter, the purpose of each training stage and evaluation guidance.
-**Runnable distillation instructions will be added once cosmos-framework supports causal teacher-forcing and
-Self-Forcing training.** Until then, teacher fine-tuning is the supported training path, and the distillation
-stages are described as a reference recipe.
+documents the reference recipe for four-step and two-step Cosmos3-H-Dreams students,
+including CMR curation, the 8,000-unit camera-command filter, checkpoint handoffs,
+optimization, action history, export and evaluation. **Causal TF and Self-Forcing
+training are now public in cosmos-framework.** The tutorial links the inspected
+implementation, includes the integration instructions and acceptance tests, and
+provides a [machine-readable recipe](cosmos3_h_embodied/exp15_distillation_reference.json).
+The companion now includes the CMR28 adapter, a pinned causal H16 extension, six
+registered stages, and a restartable smoke-test driver. An independent eight-H100
+smoke completed all six stages, C24/SF4 save/resume, both student exports and native
+autoregressive inference. A separate fresh setup run passed all 55 tests, media
+decoding and eight-GPU BF16 checks using the tutorial's image prerequisites.
+Eight GPUs are a reference configuration: adapt the GPU count and resources to
+your hardware and qualify that setup. This
+bounded run does not establish full-training convergence or released-checkpoint
+quality. The tutorial also includes released-student inference without training,
+full-budget research-spec generation and explicit checkpoint selection. A reported
+two-48-GB setup passed installation/preflight but exhausted GPU memory at the first
+training stage; released-student inference passed on a single 48 GB GPU.
+The tutorial documents workstation setup, memory observations, integrated
+evaluator fixes and the automatically applied H16 framework patch. See the
+[qualification record](cosmos3_h_embodied/dreams/qualification.json) for remaining
+gaps. Existing H16 teacher fine-tuning remains available as documented above.
 
 ## Tests
 
