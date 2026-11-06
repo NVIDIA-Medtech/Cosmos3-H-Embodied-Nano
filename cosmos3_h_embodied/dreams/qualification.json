@@ -130,7 +130,7 @@
     "mixed_gpu_execution": "Setup/BF16/preflight passed on the reported mixed pair; training failed for memory capacity",
     "low_vram_offload_preset": "not_provided",
     "released_student_single_gpu": "Reported: released SF4/SF2 inference passed on one 48 GB Ada GPU, including genuine H16; approximately 38.5 GB peak reported",
-    "evidence": "qualification_portability.md"
+    "evidence": "Independent portability review; relevant hardware limits and caveats are summarized in tutorial_teacher_training_and_self_forcing.md. Original report retained locally."
   },
   "remaining_gaps": [
     "Smoke-exported student inference with genuine H16 (released-student H16 passed in reported portability review)",
@@ -179,7 +179,7 @@
   "record_scope": "Top-level reference GPU results describe the 2026-11-02 implementation; portability observations, the 2026-11-05 downstream run and current revision checks are separate records.",
   "reported_portability_review": {
     "date": "2026-11-04",
-    "evidence": "qualification_portability.md",
+    "evidence": "Independent portability review; relevant hardware limits and caveats are summarized in tutorial_teacher_training_and_self_forcing.md. Original report retained locally.",
     "independently_rerun_by_maintainer": false,
     "released_student_history_lengths": [
       0,
