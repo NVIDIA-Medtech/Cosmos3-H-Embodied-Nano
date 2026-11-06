@@ -2,9 +2,8 @@
 
 **Cosmos3-H-Embodied-Nano** is [Cosmos3-Nano](https://huggingface.co/nvidia/Cosmos3-Nano) (16B) post-trained for
 surgical robotics on the [Open-H Embodiment dataset](https://huggingface.co/datasets/nvidia/PhysicalAI-Robotics-Open-H-Embodiment).
-One model predicts robot actions and endoscopic video for dVRK-style and other surgical robots, conditioned on a
-short **history of past actions** (up to 16, "H16"): it is a world model (forward dynamics), a policy and an
-inverse-dynamics model in one checkpoint. Its predecessor,
+One model predicts robot actions and endoscopic video for dVRK-style and other surgical robots: it is a
+world model (forward dynamics), a policy and an inverse-dynamics model in one checkpoint. Its predecessor,
 [Cosmos-H-Surgical-Simulator](https://huggingface.co/nvidia/Cosmos-H-Surgical-Simulator), is a world model only.
 
 This repository contains everything needed to use and adapt it, built as a plugin package (`cosmos3_h_embodied`)
