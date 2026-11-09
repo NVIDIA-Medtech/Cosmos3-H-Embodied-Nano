@@ -1,0 +1,50 @@
+{
+  "cosmos_framework/data/generator/sequence_packing/sequence.py": {
+    "before": "11a7a3bc75e3de2f6396b764237d5b4d3c9fc72d2e7bf7b795109bca973d9e33",
+    "after": "a8458caa4605b797d46d6a0ad142744c6f936926708b78eab73447214371191a"
+  },
+  "cosmos_framework/model/generator/utils/data_and_condition.py": {
+    "before": "8c392ad6ad6286d52a584c3e86f7bc57544083b6d214c09d7734d538344b3eed",
+    "after": "e09b65f5c96f21ef2d271107c7f0d48561148e096795312c970a2579fc2a9875"
+  },
+  "cosmos_framework/model/generator/omni_mot_model.py": {
+    "before": "db985893e84a942e2b55dac68ff1a3a794dc21272f0113054faf5e80b1bcf006",
+    "after": "0e78a5e11216b5143979bd52d684b79bb877c249e0c68e827365895987bde097"
+  },
+  "cosmos_framework/data/generator/sequence_packing/temporal_causal.py": {
+    "before": "637af7aa4065db58c7d8b93cb8f2ffcd98b83a76dc8a3a54cacf3935cf979171",
+    "after": "184f4fe26d07b01505c9b38f293c25c39564978eb77c7c9a9aa1cc317354cdb3"
+  },
+  "cosmos_framework/data/generator/sequence_packing/packers.py": {
+    "before": "e2852a08d40cd17dc18b24dc66924d4497a67b65431c926e7fa04d88527bf61d",
+    "after": "6afe190c6c2a18fc34f0c1a49af4d2214bac12c553017542652f72d9639565c9"
+  },
+  "cosmos_framework/data/generator/sequence_packing/autoregressive.py": {
+    "before": "09ba4744bdccb2de163a2b9845227891d776e2b71ef230e053b5897fe5c57aee",
+    "after": "2c6f4f1330ef42c00858b9bb63845366a02f2d2bd071fda8593960cb680eeb7f"
+  },
+  "cosmos_framework/model/generator/mot/attention.py": {
+    "before": "ca579d95ccf212e4e53c343d7b13eaa6f2616440a1dcc69b23181bfbd45bbf63",
+    "after": "c7c3b99bdf894815c447588f2c94d8bb25146d34ac123029831bf8d12740ac91"
+  },
+  "cosmos_framework/model/generator/mot/cosmos3_vfm_network.py": {
+    "before": "94079f213e4cc3a74a46da0a29c897a2abc70479f66aa36563f60bcd35f151b9",
+    "after": "bd39e811273f024de7ade916676e6fb76ecfae15adb0ebc61d01ebc718b16cf3"
+  },
+  "cosmos_framework/model/generator/mot/causal_attention.py": {
+    "before": "42eb599ae3fbe9f05c1c9a6f8fd15647deed416c35a3ecdf59f0269ab9e85b21",
+    "after": "7bdef189101356670b02882fa84eb304a3e7e8055428b29c1c948a8fa09a7182"
+  },
+  "cosmos_framework/model/generator/utils/kv_cache.py": {
+    "before": "9f4d7924b2e08f948a0729731321d4843d3d233b27e5e63d57b13aa81aaef063",
+    "after": "933809a5416ff1e7b1b6e88734b7c48bab7856cf70a05721b9fe2e4f7ba35ba2"
+  },
+  "cosmos_framework/model/generator/omni_mot_causal_model.py": {
+    "before": "b540d50ae7b4f861056fd7292a8a1a40dbe2891d7737a3ba7b746067ca8d65eb",
+    "after": "1bfb0c8d719e8bff6d930a23774699c1f59c220e77041ce2f997002f7ed2ed66"
+  },
+  "cosmos_framework/model/generator/distillation/self_forcing_dmd.py": {
+    "before": "a38279d20d97cb8362d8f02600b5372797c9101debaab205706194ae1f90faa2",
+    "after": "4d8dc82f6b0215a83ce23338ed947fb0de2562043d32488aabea062f0fb86792"
+  }
+}

@@ -1,0 +1,496 @@
+--- a/cosmos_framework/data/generator/sequence_packing/sequence.py
++++ b/cosmos_framework/data/generator/sequence_packing/sequence.py
+@@ -121,6 +121,8 @@
+     # for downstream attention/KV-cache code (per-supertoken layout is
+     # num_action_tokens_per_supertoken + H_p * W_p).
+     num_action_tokens_per_supertoken: int = 0
++    # Real action-only history preceding frame-zero supertokens.
++    history_action_prefix_length: int = 0
+ 
+     # Generation modality construction state
+     vision: ModalityDataBuilder | None = None
+@@ -1213,6 +1215,7 @@
+             # Temporal causal
+             null_action_supertokens=self.null_action_supertokens,
+             num_action_tokens_per_supertoken=self.num_action_tokens_per_supertoken,
++            history_action_prefix_length=self.history_action_prefix_length,
+             # Multi-control transfer
+             vision_item_split_lens=list(self.vision_item_split_lens),
+             text_caption_lens=[list(lens) for lens in self.text_caption_lens],
+@@ -1314,6 +1317,8 @@
+     # for downstream attention/KV-cache code (per-supertoken layout is
+     # num_action_tokens_per_supertoken + H_p * W_p).
+     num_action_tokens_per_supertoken: int = 0
++    # Real action-only history preceding frame-zero supertokens.
++    history_action_prefix_length: int = 0
+ 
+     # Generation modalities - NAMED FIELDS for type safety
+     vision: ModalityData | None = None
+--- a/cosmos_framework/model/generator/utils/data_and_condition.py
++++ b/cosmos_framework/model/generator/utils/data_and_condition.py
+@@ -86,6 +86,8 @@
+     # Multiview action controls: number of camera views packed camera-major into
+     # each action item. None when each action item is a standard single-view stream.
+     num_views_per_action_item: list[int] | None = None
++
++    action_history_lengths: list[int] | None = None  # aligned with dense action items
+ 
+     # Multi-control transfer: per-sample list of per-control weights.
+     # Shape: [num_samples], each element is a list of floats (one per control stream).
+--- a/cosmos_framework/model/generator/omni_mot_model.py
++++ b/cosmos_framework/model/generator/omni_mot_model.py
+@@ -5113,6 +5113,10 @@
+             is_image_batch=all(image_flags) if image_flags else gen_data_clean.is_image_batch,
+             raw_state_vision=subset_raw_vision,
+             raw_state_action=subset_raw_action,
++            action_history_lengths=(
++                gen_data_clean.action_history_lengths[start:limit]
++                if has_action and gen_data_clean.action_history_lengths is not None else None
++            ),
+             raw_state_sound=subset_raw_sound,
+             x0_tokens_vision=subset_x0_vision,
+             x0_tokens_action=x0_tokens_action,
+@@ -6028,6 +6032,13 @@
+                 num_embeddings=self.config.diffusion_expert_config.num_view_embeddings,
+             )  # list[[V]]
+         control_weights: list[list[float]] | None = data_batch.get("control_weights", None)
++        action_history_lengths = None
++        if x0_tokens_action is not None:
++            action_history_lengths = [
++                max(0, 1 - plan.action_start_frame_offset) for plan in data_batch["sequence_plan"] if plan.has_action
++            ]
++            if len(action_history_lengths) != len(x0_tokens_action):
++                raise ValueError("Action history metadata must align with dense action items")
+         data = GenerationDataClean(
+             batch_size=batch_size,
+             is_image_batch=is_image_batch,
+@@ -6061,6 +6072,7 @@
+             action_valid_mask=action_valid_mask,
+             num_views_per_action_item=num_views_per_action_item,
+             control_weights=control_weights,
++            action_history_lengths=action_history_lengths,
+             sample_is_image=sample_is_image,
+             action_sample_ids=action_sample_ids,
+             sound_sample_ids=sound_sample_ids if x0_tokens_sound is not None or sample_is_image is None else [],
+--- a/cosmos_framework/data/generator/sequence_packing/temporal_causal.py
++++ b/cosmos_framework/data/generator/sequence_packing/temporal_causal.py
+@@ -26,6 +26,7 @@
+     enable_fps_modulation: bool = False,
+     base_fps: float = 24.0,
+     pack_action_tokens: bool = True,
++    history_action_prefix_length: int = 0,
+ ) -> tuple[int, bool]:
+     """Pack vision and (optionally) action tokens in supertoken order for temporal causal attention.
+ 
+@@ -88,6 +89,19 @@
+ 
+     device = input_vision_tokens.device
+     dtype = input_vision_tokens.dtype
++
++    history_length = history_action_prefix_length
++    if not 0 <= history_length <= 16:
++        raise ValueError("Causal action history must contain zero through sixteen rows")
++    history_tokens = None
++    if history_length:
++        if input_action_tokens is None or not pack_action_tokens:
++            raise ValueError("Action history requires action tokens")
++        history_tokens = input_action_tokens.reshape(-1, action_dim)[:history_length]  # [H,D]
++        input_action_tokens = input_action_tokens.reshape(-1, action_dim)[history_length:]  # [F,D]
++        if input_action_tokens.shape[0] != (latent_t - 1) * tcf:
++            raise ValueError("History prefix is supported only at a whole-clip or frame-zero anchor")
++        seq_builder.history_action_prefix_length = history_length
+ 
+     null_action_flag: bool
+     if pack_action_tokens:
+@@ -159,13 +173,15 @@
+     if pack_action_tokens:
+         assert action is not None
+         # Action token shapes: latent_t * tcf total (including null tokens)
+-        action.token_shapes.append((latent_t * tcf,))
++        action.token_shapes.append((history_length + latent_t * tcf,))
++        if history_tokens is not None:
++            all_action_tokens = torch.cat([history_tokens, all_action_tokens], dim=0)  # [H+T*tcf,D]
+         action.tokens.append(all_action_tokens)
+         action_payload_index = len(action.tokens) - 1
+ 
+         # Action conditioning mask: all action tokens are conditioning (not supervised)
+         # Null tokens are always conditioning; real actions are conditioning too (they are inputs)
+-        action_condition_mask = torch.ones((latent_t * tcf, 1), device=device, dtype=dtype)  # [T*tcf,1]
++        action_condition_mask = torch.ones((history_length + latent_t * tcf, 1), device=device, dtype=dtype)  # [T*tcf,1]
+         action.condition_mask.append(action_condition_mask)
+ 
+     # Pack in interleaved supertoken order: [action_t, vision_t] for each frame t
+@@ -252,6 +268,28 @@
+ 
+     seq_builder._mrope_temporal_offset = new_offset
+ 
++    if history_length:
++        history_ids, _ = get_3d_mrope_ids_vae_tokens(
++            grid_t=history_length,
++            grid_h=1,
++            grid_w=1,
++            temporal_offset=temporal_offset,
++            reset_spatial_indices=seq_builder._mrope_reset_spatial,
++            fps=effective_action_fps,
++            base_fps=base_fps,
++            temporal_compression_factor=1,
++            base_temporal_compression_factor=tcf,
++            start_frame_offset=1 - history_length,
++        )  # [3,H]
++        seq_builder.append_action_span(
++            history_length,
++            history_ids,
++            payload_index=action_payload_index,
++            payload_start=0,
++            payload_shape=(history_length,),
++        )
++        total_split_len += history_length
++
+     for frame_t in range(latent_t):
+         if pack_action_tokens:
+             assert action is not None
+@@ -262,7 +300,7 @@
+                 tcf,
+                 action_position_ids,
+                 payload_index=action_payload_index,
+-                payload_start=frame_t * tcf,
++                payload_start=history_length + frame_t * tcf,
+                 payload_shape=(tcf,),
+             )
+             # Action tokens are never in MSE loss (always conditioning)
+--- a/cosmos_framework/data/generator/sequence_packing/packers.py
++++ b/cosmos_framework/data/generator/sequence_packing/packers.py
+@@ -608,6 +608,10 @@
+                 action_fps_tc = _get_optional_fps(gen_data_clean.fps_action, idx_action)
+                 idx_action += 1
+ 
++            if sequence_plan.action_start_frame_offset < 1:
++                if len(sequence_plans) != 1 or num_vis != 1:
++                    raise ValueError("Action-history causal packing requires one single-view sample")
++                seq_builder.history_action_prefix_length = 1 - sequence_plan.action_start_frame_offset
+             vision_split_len = 0
+             item_split_lens: list[int] = []
+             item_temporal_offset = seq_builder.mrope_temporal_offset
+@@ -651,6 +655,7 @@
+                     enable_fps_modulation=enable_fps_modulation,
+                     base_fps=base_fps,
+                     pack_action_tokens=sequence_plan.has_action,
++                    history_action_prefix_length=max(0, 1 - sequence_plan.action_start_frame_offset),
+                 )
+                 vision_split_len += item_split_len
+                 item_split_lens.append(item_split_len)
+--- a/cosmos_framework/data/generator/sequence_packing/autoregressive.py
++++ b/cosmos_framework/data/generator/sequence_packing/autoregressive.py
+@@ -194,6 +194,7 @@
+     raw_action_dim: torch.Tensor | int | None = None,
+     vision_temporal_positions: torch.Tensor | None = None,
+     num_views: int | None = None,
++    history_action_prefix_length: int = 0,
+     text_view_ids: list[int] | None = None,
+     vision_view_ids: torch.Tensor | None = None,  # [V] physical camera IDs, or [-1] for non-rig RGB
+ ) -> PackedSequence:
+@@ -378,6 +379,7 @@
+         has_action=has_action,
+         condition_frame_indexes_vision=condition_frame_indexes_vision or [],
+         condition_frame_indexes_action=condition_frame_indexes_action or [],
++        action_start_frame_offset=1 - history_action_prefix_length,
+     )
+ 
+     # Create GenerationDataClean for this AR unit (single frame or chunk)
+@@ -449,7 +451,7 @@
+     # frame-stride; seed (N-1) frames back to compensate. The packer infers this
+     # layout from the action shape (every frame carries a real action), so no flag
+     # is needed -- it holds for any chunk size, including latent_t > 1.
+-    ar_with_real_actions = video_temporal_causal and action_latent is not None
++    ar_with_real_actions = video_temporal_causal and action_latent is not None and not history_action_prefix_length
+     seed_frames = (frame_idx - 1) if ar_with_real_actions else frame_idx
+ 
+     # Frame 0 (cached_text_offset is None): text is packed inline and the inner
+--- a/cosmos_framework/model/generator/mot/attention.py
++++ b/cosmos_framework/model/generator/mot/attention.py
+@@ -64,6 +64,7 @@
+         self.action_token_shapes = action_token_shapes
+         self.num_action_tokens_per_supertoken = num_action_tokens_per_supertoken
+         self.null_action_supertokens = null_action_supertokens
++        self.history_action_prefix_length: int = 0
+ 
+         # Multi-control transfer fields (set post-construction in cosmos3_vfm_network.py).
+         # Gen-relative token ranges for each control stream, one tuple (start, end) per control.
+@@ -108,6 +109,7 @@
+     "action_token_shapes",
+     "num_action_tokens_per_supertoken",
+     "null_action_supertokens",
++    "history_action_prefix_length",
+     "control_stream_token_ranges",
+     "noisy_token_range",
+     "control_weights",
+--- a/cosmos_framework/model/generator/mot/cosmos3_vfm_network.py
++++ b/cosmos_framework/model/generator/mot/cosmos3_vfm_network.py
+@@ -1785,7 +1785,8 @@
+             natten_parameter_list=self.natten_parameter_list,
+             cp_world_size=sequence_shard_world_size,
+             video_temporal_causal=use_video_temporal_causal,
+-            skip_natten_metadata=memory is not None and not memory.requires_natten_metadata(),
++            skip_natten_metadata=bool(packed_seq.history_action_prefix_length)
++            or (memory is not None and not memory.requires_natten_metadata()),
+             vision_token_shapes=vision_token_shapes,
+             action_token_shapes=packed_seq.action.token_shapes if packed_seq.action else None,
+             num_action_tokens_per_supertoken=num_action_tokens_per_supertoken,
+@@ -1796,6 +1797,9 @@
+             prepared_metadata=prepared_sequence_pack_metadata,
+             text_caption_lens=packed_seq.text_caption_lens,
+         )
++        if isinstance(attention_meta, SplitInfo):
++            attention_meta.history_action_prefix_length = packed_seq.history_action_prefix_length
++
+         # ``packed_sequence`` is spent here. ``sequence_pack_from_packed_sequence`` splits it with
+         # ``packed_sequence[_causal_indices]`` and ``[_full_indices]``, and advanced indexing
+         # copies, so the pack owns its streams either way; whether ``_pad`` runs afterwards only
+--- a/cosmos_framework/model/generator/mot/causal_attention.py
++++ b/cosmos_framework/model/generator/mot/causal_attention.py
+@@ -21,6 +21,7 @@
+ )
+ from cosmos_framework.model.attention.masks import CausalType
+ from cosmos_framework.configs.base.defaults.replay_attention import TeacherForcingReplayPolicyConfig
++from cosmos3_h_embodied.dreams.history_attention import action_history_attention
+ from cosmos_framework.model.generator.mot.attention import SplitInfo
+ from cosmos_framework.model.generator.mot.attention import dispatch_attention as vfm_dispatch_attention
+ from cosmos_framework.model.generator.mot.flex_attention import FlexBackend, flex_attention
+@@ -2227,6 +2228,16 @@
+     - ``ARMemoryValue`` with ``frame_idx == 0`` → interactive no-memory dispatch
+     - ``None`` without a replay plan → interactive no-memory dispatch
+     """
++    if getattr(attention_mask, "history_action_prefix_length", 0):
++        output = action_history_attention(
++            packed_query_states,
++            packed_key_states,
++            packed_value_states,
++            attention_mask,
++            memory_value,
++            packed_key_states_normalized,
++        )
++        return output, None
+     multiview_action_attention_plan = getattr(attention_mask, "multiview_action_attention_plan", None)
+     if multiview_action_attention_plan is not None:
+         if not isinstance(multiview_action_attention_plan, MultiviewActionAttentionPlan) or not isinstance(
+--- a/cosmos_framework/model/generator/utils/kv_cache.py
++++ b/cosmos_framework/model/generator/utils/kv_cache.py
+@@ -47,6 +47,7 @@
+     vision_token_shapes: list[tuple[int, int, int]],
+     num_action_tokens_per_supertoken: int,
+     null_action_supertokens: bool,
++    history_action_prefix_length: int = 0,
+ ) -> torch.Tensor:  # [B,S,H,D]
+     """Zero value vectors for null action slots while preserving token layout."""
+     if not null_action_supertokens or num_action_tokens_per_supertoken == 0:
+@@ -54,7 +55,7 @@
+ 
+     gen_v = gen_v.clone()  # [B,S,H,D]
+     starts: list[int] = []
+-    offset = 0
++    offset = history_action_prefix_length
+     for T, H_p, W_p in vision_token_shapes:
+         starts.append(offset)
+         offset += T * (num_action_tokens_per_supertoken + H_p * W_p)
+@@ -1757,6 +1758,7 @@
+         selected_clean_gen_padded_capacity: int = 0,
+         target_only_no_text_pass2: bool = False,
+         allow_detached_target_only_clean_kv: bool = False,
++        history_action_prefix_length: int = 0,
+     ) -> None:
+         super().__init__(
+             vision_token_shapes=vision_token_shapes,
+@@ -1769,6 +1771,7 @@
+             clamp_empty_varlen_kv=clamp_empty_varlen_kv,
+             context_parallel_size=context_parallel_size,
+         )
++        self.history_action_prefix_length = history_action_prefix_length
+         self.pass_number = 1
+         self.detach_clean_kv = detach_clean_kv
+         self.frames_per_chunk = frames_per_chunk
+@@ -2021,6 +2024,7 @@
+                 self.vision_token_shapes,
+                 self.num_action_tokens_per_supertoken,
+                 self.null_action_supertokens,
++                self.history_action_prefix_length,
+             )  # [B,S,H,D]
+             self._clean_gen_kv[layer_idx] = (clean_gen_k, clean_gen_v)
+             if self.target_only_no_text_pass2:
+@@ -2477,6 +2481,7 @@
+         null_action_supertokens: bool = False,
+         *,
+         for_cuda_graphs: bool = False,
++        history_action_prefix_length: int = 0,
+         preserve_transfer_numerics: bool = False,
+         num_kv_heads: int | None = None,
+         head_dim: int | None = None,
+@@ -2493,6 +2498,7 @@
+     ) -> None:
+         self.dual_kv_cache = dual_kv_cache
+         self.frame_idx = frame_idx
++        self.history_action_prefix_length = history_action_prefix_length
+         self.vision_token_shapes = vision_token_shapes or []
+         self.num_action_tokens_per_supertoken = num_action_tokens_per_supertoken
+         self.null_action_supertokens = null_action_supertokens
+@@ -3001,6 +3007,7 @@
+                 self.vision_token_shapes,
+                 self.num_action_tokens_per_supertoken,
+                 self.null_action_supertokens,
++                self.history_action_prefix_length,
+             )  # [B,S,H_local,D]
+             if self.stage_gen_cache_writes:
+                 self._staged_gen_kv[layer_idx] = (gen_k_to_store, gen_v_to_store)
+--- a/cosmos_framework/model/generator/omni_mot_causal_model.py
++++ b/cosmos_framework/model/generator/omni_mot_causal_model.py
+@@ -1364,6 +1364,7 @@
+             context_parallel_size=context_parallel_size,
+             selected_clean_gen_token_indexes=selected_clean_gen_token_indexes,
+             selected_clean_gen_padded_capacity=selected_clean_gen_padded_capacity,
++            history_action_prefix_length=packed_sequence.history_action_prefix_length,
+             target_only_no_text_pass2=self.config.teacher_forcing_target_only_no_text_pass2,
+             allow_detached_target_only_clean_kv=(
+                 self.config.causal_training_strategy == "teacher_forcing_dcm"
+@@ -1455,6 +1456,7 @@
+                     vision_token_shapes=vision_token_shapes,
+                     num_action_tokens_per_supertoken=packed_seq.num_action_tokens_per_supertoken,
+                     null_action_supertokens=packed_seq.null_action_supertokens,
++                history_action_prefix_length=packed_seq.history_action_prefix_length,
+                     for_cuda_graphs=True,
+                     preserve_transfer_numerics=preserve_transfer_numerics,
+                     num_kv_heads=self.net.num_kv_heads,
+@@ -1474,6 +1476,7 @@
+                 vision_token_shapes=vision_token_shapes,
+                 num_action_tokens_per_supertoken=packed_seq.num_action_tokens_per_supertoken,
+                 null_action_supertokens=packed_seq.null_action_supertokens,
++                history_action_prefix_length=packed_seq.history_action_prefix_length,
+                 preserve_transfer_numerics=preserve_transfer_numerics,
+                 num_kv_heads=self.net.num_kv_heads if replicated_attention_io_cp or coarse_cuda_graph else None,
+                 head_dim=self.net.head_dim if replicated_attention_io_cp or coarse_cuda_graph else None,
+@@ -2197,6 +2200,7 @@
+             generation_vision_item_idx = 1
+ 
+         num_frames = vision_items[generation_vision_item_idx].shape[2]
++        action_history_length = self._action_history_length(gen_data_clean)
+         if max_num_frames is not None:
+             if max_num_frames < 1:
+                 raise ValueError(f"max_num_frames must be >= 1, got {max_num_frames}")
+@@ -2651,7 +2655,7 @@
+                         assert gen_data_clean.x0_tokens_action is not None
+                         # x0_tokens_action is a dense list; batch_size==1 so take the single entry and slice.
+                         curr_action_latent = gen_data_clean.x0_tokens_action[0][
+-                            (chunk_start - 1) * _tcf : (chunk_end - 1) * _tcf, :
++                            action_history_length + (chunk_start - 1) * _tcf : action_history_length + (chunk_end - 1) * _tcf, :
+                         ].to(**self.tensor_kwargs)  # a_{chunk_start-1}..a_{chunk_end-2}; [chunk_len*tcf, D]
+                     curr_action_domain_id = (
+                         streamed_domains.to(device=self.tensor_kwargs["device"])
+@@ -2811,7 +2815,7 @@
+                             _seed_action = curr_action_latent[_local_i * _tcf : (_local_i + 1) * _tcf]
+                         else:
+                             assert gen_data_clean.x0_tokens_action is not None
+-                            _seed_action = gen_data_clean.x0_tokens_action[0][(_f - 1) * _tcf : _f * _tcf, :].to(
++                            _seed_action = gen_data_clean.x0_tokens_action[0][action_history_length + (_f - 1) * _tcf : action_history_length + _f * _tcf, :].to(
+                                 **self.tensor_kwargs
+                             )  # a_{_f-1}; [tcf,D]
+                         _seed_action_domain_id = OmniMoTCausalModel._slice_action_domain_id(
+@@ -2883,7 +2887,7 @@
+                     if has_action:
+                         if _f > 0:
+                             assert gen_data_clean.x0_tokens_action is not None
+-                            _action_out = gen_data_clean.x0_tokens_action[0][(_f - 1) * _tcf : _f * _tcf, :].to(
++                            _action_out = gen_data_clean.x0_tokens_action[0][action_history_length + (_f - 1) * _tcf : action_history_length + _f * _tcf, :].to(
+                                 **self.tensor_kwargs
+                             )
+                         else:
+@@ -3041,6 +3045,24 @@
+             has_negative_prompt=has_negative_prompt,
+         )
+ 
++    def _action_history_length(self, gen_data_clean: GenerationDataClean) -> int:
++        """Read explicit prefix metadata; never infer H4 from a full-frame layout."""
++        if not gen_data_clean.x0_tokens_action:
++            return 0
++        lengths = gen_data_clean.action_history_lengths
++        if lengths is None or not any(lengths):
++            return 0
++        if len(lengths) != 1 or len(gen_data_clean.x0_tokens_action) != 1:
++            raise ValueError("Action history requires one action item")
++        if not gen_data_clean.x0_tokens_vision or len(gen_data_clean.x0_tokens_vision) != 1:
++            raise ValueError("Action history requires one vision item")
++        frames = gen_data_clean.x0_tokens_vision[0].shape[-3]
++        tcf = self.tokenizer_vision_gen.temporal_compression_factor or 4
++        history = lengths[0]
++        if not 0 <= history <= 16 or gen_data_clean.x0_tokens_action[0].shape[-2] != history + (frames - 1) * tcf:
++            raise ValueError(f"Invalid anchored action history length: {history}")
++        return history
++
+     def _cast_ar_action_tokens_to_projection_dtype(self, packed_seq: PackedSequence) -> None:
+         """Cast AR action tokens to the dtype expected by the action projection."""
+         if packed_seq.action is None or not packed_seq.action.tokens:
+@@ -3127,6 +3149,14 @@
+         if position_frame_idx is None:
+             position_frame_idx = frame_idx
+         strategy = self.config.causal_training_strategy
++        action_history_length = self._action_history_length(gen_data_clean) if frame_idx == 0 else 0
++        if action_history_length:
++            if curr_action_latent is not None:
++                raise ValueError("Frame-zero action prefix must come from the anchored source history")
++            curr_action_latent = gen_data_clean.x0_tokens_action[0][:action_history_length].to(
++                **self.tensor_kwargs
++            )  # [H,D]
++
+ 
+         if strategy == "diffusion_forcing":
+             if batched_ar:
+@@ -3203,6 +3233,7 @@
+                 force_action_tokens=video_tc and self.config.action_gen,
+                 action_domain_id=action_domain_id,
+                 raw_action_dim=raw_action_dim,
++                history_action_prefix_length=action_history_length,
+             )
+ 
+         cond_pack = _build_pack(cond_text_tokens, cond_cached_text_offset)
+--- a/cosmos_framework/model/generator/distillation/self_forcing_dmd.py
++++ b/cosmos_framework/model/generator/distillation/self_forcing_dmd.py
+@@ -614,6 +614,7 @@
+             vision_token_shapes=vision_token_shapes,
+             num_action_tokens_per_supertoken=packed_seq.num_action_tokens_per_supertoken,
+             null_action_supertokens=packed_seq.null_action_supertokens,
++            history_action_prefix_length=packed_seq.history_action_prefix_length,
+             num_kv_heads=self.net.num_kv_heads if replicated_attention_io_cp or coarse_cuda_graph else None,
+             head_dim=self.net.head_dim if replicated_attention_io_cp or coarse_cuda_graph else None,
+             write_gen_cache=memory_info.get("write_gen_cache", True),
+@@ -2722,7 +2723,7 @@
+                 frame_idx for frame_idx in sequence_plan.condition_frame_indexes_vision if frame_idx < num_frames
+             ],
+             condition_frame_indexes_action=[
+-                step_idx for step_idx in sequence_plan.condition_frame_indexes_action if step_idx < action_steps
++                step_idx for step_idx in sequence_plan.condition_frame_indexes_action if step_idx < action_steps + max(0, 1 - sequence_plan.action_start_frame_offset)
+             ],
+         )
+ 
+@@ -2761,6 +2762,13 @@
+             ]  # list[[T_sync]]
+ 
+         action_steps = max(num_frames - 1, 0) * temporal_compression_factor
++        history_lengths = gen_data_clean.action_history_lengths or []
++        if any(history_lengths):
++            if len(history_lengths) != 1 or len(gen_data_clean.x0_tokens_action or []) != 1:
++                raise ValueError("History-aware SF truncation requires one action item")
++            if not 0 <= history_lengths[0] <= 16:
++                raise ValueError("Invalid SF action history prefix")
++            action_steps += history_lengths[0]
+         truncated_actions = None
+         truncated_action_domain_id = gen_data_clean.action_domain_id
+         if gen_data_clean.x0_tokens_action is not None:
+@@ -3587,6 +3595,11 @@
+             if gen_data_clean.x0_tokens_action is not None and len(gen_data_clean.x0_tokens_action) > 0
+             else None
+         )  # [T_action,D] or [1,T_action,D] or None
++        history_length = max(0, 1 - sequence_plans[0].action_start_frame_offset)
++        if history_length and action_tokens is not None:
++            # Keep the full anchored prefix in gen_data_clean for the bidirectional
++            # score reference and frame-zero prefill; rollout slices future rows only.
++            action_tokens = action_tokens[..., history_length:, :]  # [...,F,D]
+         force_action_tokens = self.config.action_gen and sequence_plans[0].has_action
+         if force_action_tokens and action_tokens is None:
+             raise ValueError("Action-conditioned self-forcing requires action tokens in the batch.")

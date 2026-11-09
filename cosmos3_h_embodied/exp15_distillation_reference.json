@@ -1,0 +1,702 @@
+{
+  "schema_version": 1,
+  "purpose": "Reference specification for a public adaptation of exp15; not a runnable framework configuration.",
+  "qualification": {
+    "source_audited": true,
+    "public_end_to_end_gpu_qualified": true,
+    "cmr28_adapter_included": true,
+    "causal_h16_adapter_included": true,
+    "exact_selection_manifests_included": false,
+    "qualification_scope": "Bounded eight-H100 integration smoke completed 2026-11-02; see dreams/qualification.json for budgets, evidence and remaining gaps.",
+    "full_curriculum_gpu_qualified": false,
+    "released_checkpoint_quality_parity_established": false,
+    "qualification_record": "dreams/qualification.json"
+  },
+  "inspected_framework_revision": "1a2f03ab6111b457633827736f94f67d55bd5202",
+  "initializer": {
+    "repository": "nvidia/Cosmos3-H-Embodied-Nano",
+    "file": "checkpoints/h16_50000/c3-h-e-n_model_bf16.safetensors",
+    "revision": "710459f061e0ddc0f4cbd8a581e686efb013839b",
+    "migration": "20D to 28D for domain 25 before training",
+    "sha256": "8155ce5c3dec315ea3bf5c022c42f1286fc9f62878205581c6ca2aa62eb79873"
+  },
+  "dataset": {
+    "repository": "nvidia/PhysicalAI-Robotics-Open-H-Embodiment",
+    "prefix": "Surgical/cmr_surgical/cholecystectomy",
+    "revision": "e29dda7cabf2a2626634c7822db27695553ae523",
+    "native_fps": 60,
+    "model_fps": 10,
+    "native_rows_per_transition": 6,
+    "frame_width": 832,
+    "frame_height": 480,
+    "history_max_transitions": 16,
+    "sampling": "uniform accepted window starts, with replacement",
+    "caption": "Continue the ongoing surgical task.",
+    "caption_dropout_train": 0.1,
+    "caption_dropout_eval": 0.0,
+    "append_duration_fps_timestamps": true,
+    "append_resolution_info": true,
+    "append_viewpoint_info": false,
+    "append_idle_frames": false,
+    "random_video_augmentation": false,
+    "camera_radius_max_raw": 8000,
+    "camera_rule_span": "every native row from earliest retained history through future endpoint inclusive",
+    "both_arms_engaged": true,
+    "tools": {
+      "left": "Cadiere Grasper",
+      "right": "Monopolar Hook"
+    },
+    "reference_expanded_selection": {
+      "c24": {
+        "starts": 202212,
+        "unique_minutes": 584.05
+      },
+      "c72": {
+        "starts": 117601,
+        "unique_minutes": 468.38
+      }
+    }
+  },
+  "action": {
+    "semantic_dim": 28,
+    "padded_dim": 64,
+    "domain_id": 25,
+    "old_to_new": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "left": {
+      "translation": [
+        0,
+        1,
+        2
+      ],
+      "rotation6d": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "jaw": 9,
+      "energy": 10,
+      "thumbstick_press": 11,
+      "thumbstick_xy": [
+        12,
+        13
+      ]
+    },
+    "right": {
+      "translation": [
+        14,
+        15,
+        16
+      ],
+      "rotation6d": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ],
+      "jaw": 23,
+      "energy": 24,
+      "thumbstick_press": 25,
+      "thumbstick_xy": [
+        26,
+        27
+      ]
+    },
+    "quaternion_order": "xyzw",
+    "pose_convention": "backward_anchored_world_trans",
+    "rotation6d_order": [
+      "r00",
+      "r10",
+      "r20",
+      "r01",
+      "r11",
+      "r21"
+    ],
+    "pose_target_row": "transition start + 6",
+    "jaw_and_axes_row": "transition start",
+    "button_reduction": "max over half-open native interval [s,s+6)",
+    "history_same_anchor_as_future": true,
+    "sequence_plan_action_start_frame_offset": "1-H",
+    "causal_history": "one explicit prefix at initial frame, then cached context; fixed anchor"
+  },
+  "normalization": {
+    "type": "affine_quantile",
+    "offset_formula": "(q01+q99)/2",
+    "scale_formula": "max(q99-q01,1e-8)/2",
+    "forward_clamp": [
+      -1.5,
+      1.5
+    ],
+    "q01": [
+      -0.023026004433631897,
+      -0.02575088106095791,
+      -0.026902422308921814,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      0.0,
+      -1.0,
+      -1.0,
+      -22552.9453125,
+      -22873.919921875,
+      -0.021213827654719353,
+      -0.02555491216480732,
+      -0.023598982021212578,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      -1.0,
+      0.0,
+      -1.0,
+      -1.0,
+      -21740.0,
+      -21788.0
+    ],
+    "q99": [
+      0.024271247908473015,
+      0.024753762409090996,
+      0.024232590571045876,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      22552.9453125,
+      22873.919921875,
+      0.02249855548143387,
+      0.02597120590507984,
+      0.02321622334420681,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      21740.0,
+      21788.0
+    ]
+  },
+  "training": {
+    "nodes": 6,
+    "gpus_per_node": 8,
+    "data_parallel_shard_degree": 48,
+    "context_parallel_size": 1,
+    "batch_per_rank": 1,
+    "max_samples_per_batch": 1,
+    "max_sequence_length": null,
+    "grad_accum_iter": 1,
+    "global_batch": 48,
+    "master_dtype": "float32",
+    "grad_clip_norm": 1.0,
+    "learning_rate_schedule": "constant, no warmup",
+    "same_stage_resume": "full model/optimizer/scheduler/counter/data state",
+    "checkpoint_variant": "regular net, not EMA",
+    "teacher_tf_optimizer": {
+      "lr": 3e-06,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "weight_decay": 0.01,
+      "eps": 1e-08,
+      "optimizer_type": "FusedAdam",
+      "fused": true,
+      "keys_to_select": [
+        "moe_gen",
+        "time_embedder",
+        "vae2llm",
+        "llm2vae",
+        "action2llm",
+        "action_modality_embed"
+      ],
+      "lr_multipliers": {
+        "action2llm": 1.0,
+        "action_modality_embed": 1.0
+      }
+    },
+    "sf_optimizer": {
+      "fake_score": {
+        "lr": 2e-07,
+        "betas": [
+          0.0,
+          0.999
+        ],
+        "weight_decay": 0.01,
+        "eps": 1e-08,
+        "optimizer_type": "FusedAdam",
+        "fused": true,
+        "keys_to_select": [
+          "moe_gen",
+          "time_embedder",
+          "vae2llm",
+          "llm2vae",
+          "action2llm",
+          "action_modality_embed"
+        ],
+        "lr_multipliers": {}
+      },
+      "net": {
+        "lr": 1e-06,
+        "betas": [
+          0.0,
+          0.999
+        ],
+        "weight_decay": 0.01,
+        "eps": 1e-08,
+        "optimizer_type": "FusedAdam",
+        "fused": true,
+        "keys_to_select": [
+          "moe_gen",
+          "time_embedder",
+          "vae2llm",
+          "llm2vae",
+          "action2llm",
+          "action_modality_embed"
+        ],
+        "lr_multipliers": {}
+      }
+    },
+    "sf300_counts": {
+      "logical_iterations": 300,
+      "student_updates": 50,
+      "critic_updates": 250
+    },
+    "dcm_stage": false,
+    "hardware_scope": "Historical production reference: 48 H100 GPUs. Adapt world size and resources to the target hardware and requalify; the bounded smoke reference uses eight H100 GPUs."
+  },
+  "common_model_config": {
+    "resolution": "480",
+    "max_action_dim": 64,
+    "num_embodiment_domains": 32,
+    "action_io_projector_type": "domain_aware",
+    "activation_checkpointing": {
+      "determinism_check": "default",
+      "mode": "full",
+      "preserve_rng_state": true,
+      "save_ops_regex": [
+        "fmha"
+      ]
+    },
+    "precision": "bfloat16",
+    "ema": {
+      "enabled": false,
+      "iteration_shift": 0,
+      "rate": 0.1
+    },
+    "diffusion_expert_config": {
+      "base_fps": 24,
+      "enable_action_modality_embedding": true,
+      "enable_fps_modulation": true,
+      "enable_media_modality_embedding": false,
+      "enable_sound_modality_embedding": true,
+      "enable_vision_modality_embeddings": false,
+      "load_weights_from_pretrained": false,
+      "max_vae_latent_side_after_patchify": 52,
+      "patch_spatial": 2,
+      "sound_base_temporal_compression_factor": null,
+      "timestep_range": 1.0,
+      "unified_3d_mrope_reset_spatial_ids": true,
+      "unified_3d_mrope_temporal_modality_margin": 15000,
+      "vision_temporal_position_mode": "latent_index"
+    },
+    "tokenizer": {
+      "spatial_compression_factor": 16,
+      "temporal_compression_factor": 4,
+      "encode_exact_durations": null,
+      "encode_chunk_frames": {
+        "256": 68,
+        "480": 24,
+        "720": 8
+      },
+      "chunk_duration": 93,
+      "encode_bucket_multiple": null,
+      "keep_decoder_cache": false,
+      "temporal_window": null,
+      "use_streaming_encode": false
+    }
+  },
+  "stages": [
+    {
+      "name": "c24_a",
+      "future_frames": 24,
+      "max_iter": 2000,
+      "initialize_regular_weights_from": "migrated_public_h16",
+      "scoring_teacher_and_fresh_critic_from": null,
+      "new_stage_load_training_state": false,
+      "model_config": {
+        "joint_attn_implementation": "two_way",
+        "video_temporal_causal": false,
+        "causal_training_strategy": "none",
+        "rectified_flow_training_config": {
+          "action_loss_weight": 10.0,
+          "image_loss_scale": null,
+          "independent_action_schedule": false,
+          "independent_sound_schedule": false,
+          "lidar_loss_scale": null,
+          "loss_scale": 10.0,
+          "normalize_loss_by_active": false,
+          "sample_level_loss_averaging": false,
+          "shift": {
+            "256": 3,
+            "480": 5,
+            "720": 10
+          },
+          "shift_action": null,
+          "shift_image": null,
+          "shift_sound": null,
+          "sound_loss_scale": null,
+          "train_time_action_distribution": "logitnormal",
+          "train_time_image_distribution": "logitnormal",
+          "train_time_sound_distribution": "logitnormal",
+          "train_time_video_distribution": "waver",
+          "train_time_weight": "uniform",
+          "use_discrete_rf": false,
+          "use_dynamic_shift": false
+        },
+        "fixed_step_sampler_config": null
+      },
+      "fsdp_reduce_dtype": "bfloat16"
+    },
+    {
+      "name": "c24_b",
+      "future_frames": 24,
+      "max_iter": 2000,
+      "initialize_regular_weights_from": "c24_a_selected",
+      "scoring_teacher_and_fresh_critic_from": null,
+      "new_stage_load_training_state": false,
+      "model_config": {
+        "joint_attn_implementation": "two_way",
+        "video_temporal_causal": false,
+        "causal_training_strategy": "none",
+        "rectified_flow_training_config": {
+          "action_loss_weight": 10.0,
+          "image_loss_scale": null,
+          "independent_action_schedule": false,
+          "independent_sound_schedule": false,
+          "lidar_loss_scale": null,
+          "loss_scale": 10.0,
+          "normalize_loss_by_active": false,
+          "sample_level_loss_averaging": false,
+          "shift": {
+            "256": 3,
+            "480": 5,
+            "720": 10
+          },
+          "shift_action": null,
+          "shift_image": null,
+          "shift_sound": null,
+          "sound_loss_scale": null,
+          "train_time_action_distribution": "logitnormal",
+          "train_time_image_distribution": "logitnormal",
+          "train_time_sound_distribution": "logitnormal",
+          "train_time_video_distribution": "waver",
+          "train_time_weight": "uniform",
+          "use_discrete_rf": false,
+          "use_dynamic_shift": false
+        },
+        "fixed_step_sampler_config": null
+      },
+      "fsdp_reduce_dtype": "bfloat16"
+    },
+    {
+      "name": "c72",
+      "future_frames": 72,
+      "max_iter": 4400,
+      "initialize_regular_weights_from": "c24_b_selected",
+      "scoring_teacher_and_fresh_critic_from": null,
+      "new_stage_load_training_state": false,
+      "model_config": {
+        "joint_attn_implementation": "two_way",
+        "video_temporal_causal": false,
+        "causal_training_strategy": "none",
+        "rectified_flow_training_config": {
+          "action_loss_weight": 10.0,
+          "image_loss_scale": null,
+          "independent_action_schedule": false,
+          "independent_sound_schedule": false,
+          "lidar_loss_scale": null,
+          "loss_scale": 10.0,
+          "normalize_loss_by_active": false,
+          "sample_level_loss_averaging": false,
+          "shift": {
+            "256": 3,
+            "480": 5,
+            "720": 10
+          },
+          "shift_action": null,
+          "shift_image": null,
+          "shift_sound": null,
+          "sound_loss_scale": null,
+          "train_time_action_distribution": "logitnormal",
+          "train_time_image_distribution": "logitnormal",
+          "train_time_sound_distribution": "logitnormal",
+          "train_time_video_distribution": "waver",
+          "train_time_weight": "uniform",
+          "use_discrete_rf": false,
+          "use_dynamic_shift": false
+        },
+        "fixed_step_sampler_config": null
+      },
+      "fsdp_reduce_dtype": "bfloat16"
+    },
+    {
+      "name": "tf",
+      "future_frames": 72,
+      "max_iter": 1000,
+      "initialize_regular_weights_from": "c72_selected",
+      "scoring_teacher_and_fresh_critic_from": null,
+      "new_stage_load_training_state": false,
+      "model_config": {
+        "joint_attn_implementation": "three_way",
+        "video_temporal_causal": true,
+        "causal_training_strategy": "teacher_forcing",
+        "teacher_forcing_frames_per_chunk": 1,
+        "teacher_forcing_kv_implementation": "singleview_threeway_kv",
+        "teacher_forcing_detach_clean_kv": false,
+        "teacher_forcing_replay_policy": {
+          "clean_pass_causality": "frame",
+          "control_visibility": "global",
+          "controls_read_strict_past_clean_rgb": false,
+          "decomposed_temporal_window_seconds": null,
+          "multiview_attention_scope": "all_views"
+        },
+        "rectified_flow_training_config": {
+          "action_loss_weight": 10.0,
+          "image_loss_scale": null,
+          "independent_action_schedule": false,
+          "independent_sound_schedule": false,
+          "lidar_loss_scale": null,
+          "loss_scale": 10.0,
+          "normalize_loss_by_active": false,
+          "sample_level_loss_averaging": false,
+          "shift": {
+            "256": 3,
+            "480": 5,
+            "720": 10
+          },
+          "shift_action": null,
+          "shift_image": null,
+          "shift_sound": null,
+          "sound_loss_scale": null,
+          "train_time_action_distribution": "logitnormal",
+          "train_time_image_distribution": "logitnormal",
+          "train_time_sound_distribution": "logitnormal",
+          "train_time_video_distribution": "waver",
+          "train_time_weight": "uniform",
+          "use_discrete_rf": false,
+          "use_dynamic_shift": false
+        },
+        "fixed_step_sampler_config": null
+      },
+      "fsdp_reduce_dtype": null
+    },
+    {
+      "name": "sf4",
+      "future_frames": 72,
+      "max_iter": 300,
+      "initialize_regular_weights_from": "tf_selected",
+      "scoring_teacher_and_fresh_critic_from": "c72_selected",
+      "new_stage_load_training_state": false,
+      "model_config": {
+        "joint_attn_implementation": "three_way",
+        "video_temporal_causal": true,
+        "causal_training_strategy": "none",
+        "teacher_forcing_frames_per_chunk": 1,
+        "teacher_forcing_kv_implementation": "singleview_threeway_kv",
+        "teacher_forcing_detach_clean_kv": false,
+        "teacher_forcing_replay_policy": {
+          "clean_pass_causality": "frame",
+          "control_visibility": "global",
+          "controls_read_strict_past_clean_rgb": false,
+          "decomposed_temporal_window_seconds": null,
+          "multiview_attention_scope": "all_views"
+        },
+        "rectified_flow_training_config": {
+          "action_loss_weight": 10.0,
+          "image_loss_scale": null,
+          "independent_action_schedule": false,
+          "independent_sound_schedule": false,
+          "lidar_loss_scale": null,
+          "loss_scale": 10.0,
+          "normalize_loss_by_active": false,
+          "sample_level_loss_averaging": false,
+          "shift": {
+            "256": 3,
+            "480": 5,
+            "720": 10
+          },
+          "shift_action": null,
+          "shift_image": null,
+          "shift_sound": null,
+          "sound_loss_scale": null,
+          "train_time_action_distribution": "logitnormal",
+          "train_time_image_distribution": "logitnormal",
+          "train_time_sound_distribution": "logitnormal",
+          "train_time_video_distribution": "uniform",
+          "train_time_weight": "uniform",
+          "use_discrete_rf": false,
+          "use_dynamic_shift": false
+        },
+        "backward_grad_steps": 1,
+        "simulation_mode": "self_forcing",
+        "sf_replayed_training": true,
+        "sf_replay_block_size": 1,
+        "sf_replay_include_conditioned_frames": false,
+        "sf_keep_student_fsdp_unsharded_during_rollout": false,
+        "sf_rollout_backend": "causal_ar",
+        "sf_rollout_num_pixel_frames": null,
+        "sf_rollout_step_mode": "max",
+        "sf_simulation_steps_per_frame": [
+          4
+        ],
+        "sf_backward_timestep_schedules": [
+          [
+            0.9375,
+            0.8333333333333334,
+            0.625
+          ]
+        ],
+        "fixed_step_sampler_config": {
+          "sample_type": "sde",
+          "t_list": [
+            1.0,
+            0.9375,
+            0.8333333333333334,
+            0.625
+          ]
+        },
+        "student_update_freq": 6,
+        "warmup_student_steps": 0,
+        "warmup_critic_steps": 0,
+        "action_conditioned_teacher_guidance": 1.0,
+        "load_teacher_weights": true,
+        "loss_scale_fake_score": 1.0,
+        "loss_scale_sid": 1.0
+      },
+      "fsdp_reduce_dtype": null
+    },
+    {
+      "name": "sf2",
+      "future_frames": 72,
+      "max_iter": 300,
+      "initialize_regular_weights_from": "sf4_selected_student",
+      "scoring_teacher_and_fresh_critic_from": "c72_selected",
+      "new_stage_load_training_state": false,
+      "model_config": {
+        "joint_attn_implementation": "three_way",
+        "video_temporal_causal": true,
+        "causal_training_strategy": "none",
+        "teacher_forcing_frames_per_chunk": 1,
+        "teacher_forcing_kv_implementation": "singleview_threeway_kv",
+        "teacher_forcing_detach_clean_kv": false,
+        "teacher_forcing_replay_policy": {
+          "clean_pass_causality": "frame",
+          "control_visibility": "global",
+          "controls_read_strict_past_clean_rgb": false,
+          "decomposed_temporal_window_seconds": null,
+          "multiview_attention_scope": "all_views"
+        },
+        "rectified_flow_training_config": {
+          "action_loss_weight": 10.0,
+          "image_loss_scale": null,
+          "independent_action_schedule": false,
+          "independent_sound_schedule": false,
+          "lidar_loss_scale": null,
+          "loss_scale": 10.0,
+          "normalize_loss_by_active": false,
+          "sample_level_loss_averaging": false,
+          "shift": {
+            "256": 3,
+            "480": 5,
+            "720": 10
+          },
+          "shift_action": null,
+          "shift_image": null,
+          "shift_sound": null,
+          "sound_loss_scale": null,
+          "train_time_action_distribution": "logitnormal",
+          "train_time_image_distribution": "logitnormal",
+          "train_time_sound_distribution": "logitnormal",
+          "train_time_video_distribution": "uniform",
+          "train_time_weight": "uniform",
+          "use_discrete_rf": false,
+          "use_dynamic_shift": false
+        },
+        "backward_grad_steps": 1,
+        "simulation_mode": "self_forcing",
+        "sf_replayed_training": true,
+        "sf_replay_block_size": 1,
+        "sf_replay_include_conditioned_frames": false,
+        "sf_keep_student_fsdp_unsharded_during_rollout": false,
+        "sf_rollout_backend": "causal_ar",
+        "sf_rollout_num_pixel_frames": null,
+        "sf_rollout_step_mode": "max",
+        "sf_simulation_steps_per_frame": [
+          2
+        ],
+        "sf_backward_timestep_schedules": [
+          [
+            0.8333333333333334
+          ]
+        ],
+        "fixed_step_sampler_config": {
+          "sample_type": "sde",
+          "t_list": [
+            1.0,
+            0.8333333333333334
+          ]
+        },
+        "student_update_freq": 6,
+        "warmup_student_steps": 0,
+        "warmup_critic_steps": 0,
+        "action_conditioned_teacher_guidance": 1.0,
+        "load_teacher_weights": true,
+        "loss_scale_fake_score": 1.0,
+        "loss_scale_sid": 1.0
+      },
+      "fsdp_reduce_dtype": null
+    }
+  ],
+  "sampling_notes": {
+    "terminal_zero": "Appended by sampler, not stored in t_list or sf_backward_timestep_schedules.",
+    "chunk": "One latent temporal frame equals four 10 Hz transitions.",
+    "sf2": "New stage from SF4 student, same C72 teacher, fresh C72 critic and fresh optimization."
+  }
+}
